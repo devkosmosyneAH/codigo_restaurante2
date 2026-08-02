@@ -1,7 +1,7 @@
-echo "# Restaurant" >> README.md
+echo "# PlatformWeb" >> README.md
 git init
 git add README.md
 git commit -m "first commit"
 git branch -M main
-git remote add origin https://github.com/devkosmosyneAH/Restaurant.git
+git remote add origin https://github.com/devkosmosyneAH/PlatformWeb.git
 git push -u origin main

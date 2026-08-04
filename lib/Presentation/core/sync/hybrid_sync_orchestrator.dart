@@ -28,7 +28,10 @@ class HybridSyncOrchestrator {
        _connectivity = connectivity ?? Connectivity(),
        _beforePushHook = beforePushHook;
 
-  static const Duration _pulseInterval = Duration(seconds: 30);
+  // La sincronización de cambios locales se dispara por evento. Este pulso
+  // solo revisa cambios hechos desde otro dispositivo y evita lecturas
+  // frecuentes para conservar el uso gratuito de Firebase.
+  static const Duration _pulseInterval = Duration(minutes: 5);
   static const Duration _localChangeDebounce = Duration(milliseconds: 700);
   static const Duration _tombstoneRetention = Duration(days: 30);
   static const Duration _tombstonePurgeInterval = Duration(hours: 12);
@@ -144,7 +147,8 @@ class HybridSyncOrchestrator {
       await _cloudService.ensureAvailable();
 
       final tenantId = _tenantContext.restaurantId.trim();
-      if (tenantId.isNotEmpty) {
+      final shouldPullRemote = reason != 'local-change';
+      if (tenantId.isNotEmpty && shouldPullRemote) {
         await _pullRemoteChanges(tenantId: tenantId);
         await _purgeExpiredTombstones(tenantId: tenantId);
       }

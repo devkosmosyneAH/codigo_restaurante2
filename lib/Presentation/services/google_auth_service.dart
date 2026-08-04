@@ -91,6 +91,32 @@ class GoogleAuthService extends ChangeNotifier {
     }
   }
 
+  /// Rehidrata Drive sin abrir ventanas ni pedir consentimiento.
+  ///
+  /// Google Sign-In puede restaurar la identidad al recargar la web, pero la
+  /// aplicación debe volver a comprobar los scopes y obtener un access token
+  /// utilizable antes de que el administrador abra el formulario de producto.
+  /// Si el token web ya caducó, este método devuelve `false` y la UI puede
+  /// solicitar una reconexión mediante un gesto explícito del usuario.
+  Future<bool> restoreDriveSessionSilently() async {
+    try {
+      final account = _currentUser ?? await restoreSession();
+      if (account == null) return false;
+
+      final authorized = await ensureDriveAuthorized(interactive: false);
+      if (!authorized) return false;
+
+      final token = await getAccessToken();
+      return token != null && token.isNotEmpty;
+    } catch (error, stackTrace) {
+      // La restauración es opcional: un fallo de OAuth no debe impedir que
+      // la aplicación arranque ni que el usuario use el resto del sistema.
+      debugPrint('google_auth.restoreDriveSessionSilently: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return false;
+    }
+  }
+
   /// Inicio interactivo; debe ejecutarse únicamente como respuesta del usuario.
   Future<GoogleSignInAccount?> signIn() async {
     await initialize();

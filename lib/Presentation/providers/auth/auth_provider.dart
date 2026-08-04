@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:restaurant_app/Presentation/core/constants/app_constants.dart';
 import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
 import 'package:restaurant_app/Presentation/core/domain/enums.dart';
+import 'package:restaurant_app/Presentation/core/sync/hybrid_sync_orchestrator.dart';
 import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/entities/usuarios/usuario.dart';
 import 'package:restaurant_app/Presentation/providers/auth/activation_provider.dart';
@@ -27,6 +30,22 @@ class AuthChangeNotifier extends ChangeNotifier {
 
   /// Verdadero si la restauración de sesión quedó en proceso.
   bool get isSessionRestoring => _isSessionRestoring;
+
+  void _startCloudSyncIfAuthenticated() {
+    if (!isAuthenticated || !sl.isRegistered<HybridSyncOrchestrator>()) {
+      return;
+    }
+
+    // Firebase solo sincroniza datos operativos después de una sesión
+    // autenticada; la página pública anónima no inicia el sincronizador.
+    if (!sl<FirebaseAuthService>().isSignedIn) return;
+    unawaited(sl<HybridSyncOrchestrator>().start());
+  }
+
+  Future<void> _stopCloudSync() async {
+    if (!sl.isRegistered<HybridSyncOrchestrator>()) return;
+    await sl<HybridSyncOrchestrator>().stop();
+  }
 
   bool _canUseActivatedApp() {
     if (!sl.isRegistered<ActivationChangeNotifier>()) return true;
@@ -101,6 +120,7 @@ class AuthChangeNotifier extends ChangeNotifier {
       userId: usuario.id,
       rol: usuario.rol.value,
     );
+    _startCloudSyncIfAuthenticated();
     if (previousUser != _usuario) {
       debugPrint("AUTH notifyListeners() - loginWithEmailAndPassword");
       debugPrint(StackTrace.current.toString());
@@ -148,6 +168,7 @@ class AuthChangeNotifier extends ChangeNotifier {
         userId: usuario.id,
         rol: usuario.rol.value,
       );
+      _startCloudSyncIfAuthenticated();
       if (previousUser != _usuario) {
         debugPrint("AUTH notifyListeners() - restoreSession");
         debugPrint(StackTrace.current.toString());
@@ -171,6 +192,7 @@ class AuthChangeNotifier extends ChangeNotifier {
 
   /// Cierra la sesión actual y limpia la persistencia local.
   Future<void> logout() async {
+    await _stopCloudSync();
     final current = _usuario;
     if (current != null) {
       await _audit('logout', userId: current.id);

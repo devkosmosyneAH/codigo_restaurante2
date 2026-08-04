@@ -56,8 +56,13 @@ Future<void> main() async {
         await FirebaseAppInitializer.initialize();
 
         debugPrint('STEP 5.1 - GoogleAuthService.initialize/restoreSession');
-        await GoogleAuthService.instance.initialize();
-        await GoogleAuthService.instance.restoreSession();
+        final googleAuth = GoogleAuthService.instance;
+        await googleAuth.initialize();
+        await googleAuth.restoreSession();
+        // Rehidrata Drive de forma silenciosa cuando Google conserva la
+        // sesión. No abre OAuth al arrancar ni realiza llamadas de catálogo.
+        final driveRestored = await googleAuth.restoreDriveSessionSilently();
+        debugPrint('STEP 5.2 - Drive session restored=$driveRestored');
 
         debugPrint('STEP 6 - initDependencies');
         await initDependencies();

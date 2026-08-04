@@ -190,7 +190,7 @@ class _MenuPageState extends ConsumerState<MenuPage>
     if (!ok && mounted) {
       await _cleanupFailedProductImage(
         producto.driveFileId,
-        producto.restaurantId,
+        sl<TenantContext>().restaurantId,
       );
       _showError(ref.read(menuProvider).errorMessage);
     }
@@ -215,7 +215,7 @@ class _MenuPageState extends ConsumerState<MenuPage>
       if (updated.driveFileId != producto.driveFileId) {
         await _cleanupFailedProductImage(
           updated.driveFileId,
-          updated.restaurantId,
+          sl<TenantContext>().restaurantId,
         );
       }
       _showError(ref.read(menuProvider).errorMessage);
@@ -235,8 +235,7 @@ class _MenuPageState extends ConsumerState<MenuPage>
           .where((p) => p.id == productoId)
           .firstOrNull;
       final driveFileId = producto?.driveFileId;
-      final restaurantId =
-          producto?.restaurantId ?? sl<TenantContext>().restaurantId;
+      final restaurantId = sl<TenantContext>().restaurantId;
 
       debugPrint(
         'MENU_DELETE [3] Producto encontrado=${producto != null} driveFileId=${driveFileId ?? 'null'} restaurantId=$restaurantId',

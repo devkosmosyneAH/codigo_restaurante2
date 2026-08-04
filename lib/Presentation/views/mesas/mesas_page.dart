@@ -365,7 +365,7 @@ class _MesasPageState extends ConsumerState<MesasPage> {
       builder: (_) => MesaFormDialog(
         mesa: mesa,
         nextNumero: mesa.numero,
-        restaurantId: mesa.restaurantId,
+        restaurantId: sl<TenantContext>().restaurantId,
       ),
     );
 
@@ -452,7 +452,11 @@ class _MesasPageState extends ConsumerState<MesasPage> {
                         Navigator.pop(ctx);
                         ref
                             .read(mesasProvider.notifier)
-                            .cambiarEstado(mesa.id, estado, mesa.restaurantId);
+                            .cambiarEstado(
+                              mesa.id,
+                              estado,
+                              sl<TenantContext>().restaurantId,
+                            );
                       },
                     ),
                   ),
@@ -647,7 +651,7 @@ class _MesasPageState extends ConsumerState<MesasPage> {
     if (confirmed == true) {
       await ref
           .read(mesasProvider.notifier)
-          .eliminarMesa(mesa.id, mesa.restaurantId);
+          .eliminarMesa(mesa.id, sl<TenantContext>().restaurantId);
       if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -710,7 +714,7 @@ class _MesasPageState extends ConsumerState<MesasPage> {
       final nombre = controller.text.trim();
       final ok = await ref
           .read(mesasProvider.notifier)
-          .reservarMesa(mesa, nombre, mesa.restaurantId);
+          .reservarMesa(mesa, nombre, sl<TenantContext>().restaurantId);
       messenger.showSnackBar(
         SnackBar(
           content: Text(

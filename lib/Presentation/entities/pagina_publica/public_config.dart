@@ -113,7 +113,7 @@ class PublicConfig {
     restaurantId: restaurantId,
     slogan: 'El sabor auténtico que te hace volver',
     descripcion:
-        'Bienvenido a La Peña Bar & Restaurant, un espacio donde la buena '
+        'Bienvenido a La Peña Bar&House, un espacio donde la buena '
         'comida, la música y el ambiente familiar se unen para brindarte una '
         'experiencia única. Disfruta de nuestra gastronomía elaborada con '
         'productos frescos y el cariño de nuestra cocina.',

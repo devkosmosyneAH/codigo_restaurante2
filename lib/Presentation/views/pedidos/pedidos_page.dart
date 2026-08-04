@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:restaurant_app/Presentation/config/routes/app_router.dart';
 import 'package:restaurant_app/Presentation/core/domain/enums.dart';
+import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
+import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/providers/mesas/mesas_provider.dart';
@@ -231,7 +233,7 @@ class _PedidosPageState extends ConsumerState<PedidosPage> {
       ),
       builder: (_) => AgregarItemSheet(
         pedidoId: pedido.id,
-        restaurantId: pedido.restaurantId,
+        restaurantId: sl<TenantContext>().restaurantId,
       ),
     );
 
@@ -384,7 +386,7 @@ class _PedidosPageState extends ConsumerState<PedidosPage> {
   Future<void> _cambiarEstado(Pedido pedido, EstadoPedido nuevoEstado) async {
     final success = await ref
         .read(pedidosProvider.notifier)
-        .cambiarEstado(pedido.id, nuevoEstado, pedido.restaurantId);
+        .cambiarEstado(pedido.id, nuevoEstado, sl<TenantContext>().restaurantId);
 
     if (!success) return;
 
@@ -392,7 +394,11 @@ class _PedidosPageState extends ConsumerState<PedidosPage> {
     if (nuevoEstado == EstadoPedido.entregado && pedido.mesaId != null) {
       await ref
           .read(mesasProvider.notifier)
-          .cambiarEstado(pedido.mesaId!, EstadoMesa.libre, pedido.restaurantId);
+          .cambiarEstado(
+            pedido.mesaId!,
+            EstadoMesa.libre,
+            sl<TenantContext>().restaurantId,
+          );
     }
 
     if (!mounted) return;
@@ -426,7 +432,7 @@ class _PedidosPageState extends ConsumerState<PedidosPage> {
     if (confirmed == true) {
       final success = await ref
           .read(pedidosProvider.notifier)
-          .eliminarPedido(pedido.id, pedido.restaurantId);
+          .eliminarPedido(pedido.id, sl<TenantContext>().restaurantId);
 
       if (!success) return;
 
@@ -437,7 +443,7 @@ class _PedidosPageState extends ConsumerState<PedidosPage> {
             .cambiarEstado(
               pedido.mesaId!,
               EstadoMesa.libre,
-              pedido.restaurantId,
+              sl<TenantContext>().restaurantId,
             );
       }
 

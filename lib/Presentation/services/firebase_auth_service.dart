@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:restaurant_app/Presentation/core/constants/app_constants.dart';
+import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
 import 'package:restaurant_app/Presentation/services/Auth/auth_service.dart';
 import 'package:restaurant_app/Presentation/services/session_service.dart';
 
@@ -130,14 +131,15 @@ class FirebaseAuthService {
     if (existingSession != null) return existingSession;
 
     final profile = await _syncUserToRealtimeDatabase(user);
+    final resolvedRole = await _resolveRole(user, profile);
     final sessionData = {
       'id': user.uid,
       'uid': user.uid,
       'email': user.email,
       'name': user.displayName ?? profile?['name'] ?? 'Usuario',
-      'role': profile?['role'] ?? 'administrador',
-      'permission': profile?['permission'] ?? 'admin',
-      'restaurantId': AppConstants.defaultRestaurantId,
+      'role': resolvedRole,
+      'permission': profile?['permission'] ?? 'operador',
+      'restaurantId': AppConstants.restaurantId,
     };
     await SessionService.saveUserSession(sessionData);
     return sessionData;
@@ -150,13 +152,14 @@ class FirebaseAuthService {
     }
 
     final profile = await _syncUserToRealtimeDatabase(user);
+    final resolvedRole = await _resolveRole(user, profile);
     final sessionData = {
       'uid': user.uid,
       'email': user.email,
       'name': user.displayName ?? profile?['name'] ?? 'Usuario',
-      'role': profile?['role'] ?? 'administrador',
-      'permission': profile?['permission'] ?? 'admin',
-      'restaurantId': AppConstants.defaultRestaurantId,
+      'role': resolvedRole,
+      'permission': profile?['permission'] ?? 'operador',
+      'restaurantId': AppConstants.restaurantId,
     };
     await SessionService.saveUserSession(sessionData);
 
@@ -170,6 +173,38 @@ class FirebaseAuthService {
         'permission': profile?['permission'] ?? localUser['permission'],
       });
     }
+  }
+
+  /// Obtiene el rol administrado por la pantalla de Usuarios.
+  ///
+  /// La tabla local es la fuente operativa para este restaurante: el
+  /// administrador puede crear o editar el usuario por correo y el siguiente
+  /// inicio de sesión aplicará ese rol. El perfil remoto solo se usa como
+  /// respaldo para cuentas todavía no registradas localmente.
+  Future<String> _resolveRole(
+    User user,
+    Map<String, dynamic>? profile,
+  ) async {
+    final email = user.email?.trim();
+    if (email != null && email.isNotEmpty) {
+      try {
+        final rows = await DatabaseHelper.instance.query(
+          'usuarios',
+          where: 'lower(email) = lower(?) AND restaurant_id = ? AND activo = 1',
+          whereArgs: [email, AppConstants.restaurantId],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final localRole = rows.first['rol']?.toString().trim();
+          if (localRole != null && localRole.isNotEmpty) return localRole;
+        }
+      } catch (error) {
+        debugPrint('firebase_auth.local_role_lookup_failed: $error');
+      }
+    }
+
+    final remoteRole = profile?['role']?.toString().trim();
+    return remoteRole == null || remoteRole.isEmpty ? 'mesero' : remoteRole;
   }
 
   Future<Map<String, dynamic>?> _syncUserToRealtimeDatabase(

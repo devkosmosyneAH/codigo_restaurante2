@@ -11,7 +11,7 @@ import 'package:restaurant_app/Presentation/entities/menu/producto.dart';
 import 'package:restaurant_app/Presentation/entities/menu/variante.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido_item.dart';
-import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
+import 'package:restaurant_app/Presentation/providers/menu/public_menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pedidos/pedidos_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -62,7 +62,7 @@ class _PedidoMesaPublicaPageState extends ConsumerState<PedidoMesaPublicaPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(menuProvider.notifier).loadMenu();
+      ref.read(publicMenuProvider.notifier).load();
     });
   }
 
@@ -159,7 +159,7 @@ class _PedidoMesaPublicaPageState extends ConsumerState<PedidoMesaPublicaPage> {
   Widget build(BuildContext context) {
     if (_pedidoEnviado) return _ConfirmacionView(mesaNombre: widget.mesaNombre);
 
-    final menuState = ref.watch(menuProvider);
+    final menuState = ref.watch(publicMenuProvider);
     final categorias = menuState.categorias;
     final productos = menuState.productosDisponibles
         .where(

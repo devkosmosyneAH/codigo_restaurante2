@@ -45,7 +45,7 @@ class AuthChangeNotifier extends ChangeNotifier {
     await SessionService.logSecurityEvent(
       eventType: eventType,
       userId: userId,
-      restaurantId: AppConstants.defaultRestaurantId,
+      restaurantId: AppConstants.restaurantId,
       detail: detail,
     );
   }
@@ -80,9 +80,7 @@ class AuthChangeNotifier extends ChangeNotifier {
     final previousUser = _usuario;
     final usuario = Usuario(
       id: session['uid'] as String? ?? 'firebase-user',
-      restaurantId:
-          session['restaurantId'] as String? ??
-          AppConstants.defaultRestaurantId,
+      restaurantId: AppConstants.restaurantId,
       nombre: session['name'] as String? ?? 'Usuario',
       email: session['email'] as String?,
       pin: null,
@@ -201,7 +199,7 @@ class AuthChangeNotifier extends ChangeNotifier {
         session['rol'] as String? ?? session['role'] as String? ?? 'mesero';
     return Usuario(
       id: id,
-      restaurantId: session['restaurantId'] as String,
+      restaurantId: AppConstants.restaurantId,
       nombre:
           session['nombre'] as String? ??
           session['name'] as String? ??

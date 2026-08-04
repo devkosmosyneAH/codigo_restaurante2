@@ -130,7 +130,10 @@ class ClienteServiceImpl implements ClienteService {
 
   @override
   Future<Cliente> buscarOCrear(Map<String, dynamic> datos) async {
-    final cedula = (datos['cedula'] as String? ?? '').trim();
+    final cedula = (datos['cedula'] as String? ?? '').replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
     if (cedula.isEmpty) {
       throw const BusinessException(
         message: 'Debes ingresar cédula para buscar o crear cliente.',

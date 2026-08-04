@@ -9,7 +9,7 @@ import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/menu/producto.dart';
 import 'package:restaurant_app/Presentation/entities/menu/variante.dart';
 import 'package:restaurant_app/Presentation/providers/cotizaciones/cotizacion_cart_provider.dart';
-import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
+import 'package:restaurant_app/Presentation/providers/menu/menu_state.dart';
 import 'package:restaurant_app/Presentation/providers/menu/public_menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/mesas/llamados_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';

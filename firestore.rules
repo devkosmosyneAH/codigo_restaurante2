@@ -6,13 +6,7 @@ service cloud.firestore {
     }
 
     function hasTenantAccess(restaurantId) {
-      return isSignedIn() && (
-        request.auth.token.admin == true ||
-        (request.auth.token.restaurant_id is string &&
-            request.auth.token.restaurant_id == restaurantId) ||
-        (request.auth.token.restaurant_ids is list &&
-            request.auth.token.restaurant_ids.hasAny([restaurantId]))
-      );
+      return isSignedIn() && restaurantId == 'la_pena_001';
     }
 
     function requestRestaurantMatches(restaurantId) {

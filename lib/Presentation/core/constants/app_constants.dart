@@ -7,7 +7,7 @@ class AppConstants {
 
   // ── Información de la App ──────────────────────────────────────────
   static const String appName = 'La Peña';
-  static const String appFullName = 'La Peña Bar & Restaurant';
+  static const String appFullName = 'La Peña Bar&House';
   static const String appVersion = '1.0.0';
 
   // ── Activación local (demo / licencia fija) ─────────────────────────────
@@ -53,9 +53,12 @@ class AppConstants {
   static const String publicOrderBaseUrl =
       'https://menu.restaurante.com/pedido-mesa';
 
-  // ── Multi-restaurante ────────────────────────────────────────────────────
-  /// ID del restaurante La Peña.
+  // ── Restaurante fijo ─────────────────────────────────────────────────────
+  /// ID interno único de La Peña Bar&House.
   static const String defaultRestaurantId = 'la_pena_001';
+  /// Identificador interno único de La Peña Bar&House.
+  static const String restaurantId = defaultRestaurantId;
+  static const String restaurantName = 'La Peña Bar&House';
 
   // ── Reservaciones ─────────────────────────────────────────────────
   static const int reservaDuracionMinutos = 90;

@@ -90,8 +90,8 @@ class DatabaseHelper {
 
     // ── Restaurante La Peña ──────────────────────────────────────
     await db.insert('restaurantes', {
-      'id': AppConstants.defaultRestaurantId,
-      'nombre': AppConstants.appFullName,
+      'id': AppConstants.restaurantId,
+      'nombre': AppConstants.restaurantName,
       'activo': 1,
       'created_at': now,
       'updated_at': now,

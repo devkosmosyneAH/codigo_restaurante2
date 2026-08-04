@@ -9,7 +9,7 @@ class RealtimeDatabaseService {
 
   DatabaseReference _restaurantRoot(String restaurantId) {
     final safeRestaurantId = restaurantId.trim().isEmpty
-        ? AppConstants.defaultRestaurantId
+        ? AppConstants.restaurantId
         : restaurantId.trim();
     return _firebaseDatabase
         .ref()

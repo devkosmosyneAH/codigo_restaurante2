@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
+import 'package:restaurant_app/Presentation/core/constants/app_constants.dart';
 import 'package:restaurant_app/Presentation/core/errors/failures.dart';
 import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/core/utils/typedefs.dart';
@@ -18,7 +19,7 @@ void main() {
       await sl.reset();
       sl.registerSingleton<TenantContext>(
         TenantContext()..setFromSession(
-          restaurantId: 'restaurante_a',
+          restaurantId: AppConstants.restaurantId,
           userId: 'usr_a',
           rol: 'cajero',
         ),
@@ -43,7 +44,7 @@ void main() {
           Cliente(
             idCliente: 12,
             cedula: '0102030400',
-            restaurantId: 'restaurante_a',
+            restaurantId: AppConstants.restaurantId,
             nombre: 'Ana',
             apellido: 'Lopez',
             telefono: '0990000000',
@@ -61,12 +62,12 @@ void main() {
         });
 
         expect(cliente.idCliente, 12);
-        expect(cliente.restaurantId, 'restaurante_a');
+        expect(cliente.restaurantId, AppConstants.restaurantId);
         expect(cliente.cedula, '0102030400');
         expect(cliente.telefono, '0981111111');
         expect(cliente.email, 'ana@example.com');
         expect(cliente.direccion, 'Av. Central');
-        expect(repository.recordsFor('restaurante_a'), hasLength(1));
+        expect(repository.recordsFor(AppConstants.restaurantId), hasLength(1));
         expect(repository.createCalls, 0);
         expect(repository.updateCalls, 1);
       },

@@ -259,7 +259,7 @@ class DriveMenuConnectionService {
 
     final api = await _driveAuthCoordinator.createDriveApi(interactive: true);
     final newId = _uuid.v4();
-    final folderName = 'tenant-$restaurantId-${newId.substring(0, 8)}';
+    final folderName = 'lapena-${newId.substring(0, 8)}';
 
     final folderMeta = drive.File()
       ..name = folderName

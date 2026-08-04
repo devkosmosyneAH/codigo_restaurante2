@@ -25,7 +25,7 @@ void main() {
       expect(context.rol, isNull);
     });
 
-    test('stores session tenant and clears back to default', () {
+    test('keeps the fixed La Peña restaurant for every session', () {
       final context = TenantContext()
         ..setFromSession(
           restaurantId: 'restaurant_002',
@@ -33,7 +33,7 @@ void main() {
           rol: 'administrador',
         );
 
-      expect(context.restaurantId, 'restaurant_002');
+      expect(context.restaurantId, AppConstants.restaurantId);
       expect(context.userId, 'usr_002');
       expect(context.rol, 'administrador');
 
@@ -62,7 +62,7 @@ void main() {
 
       final context = await TenantContext.fromCurrentSession();
 
-      expect(context.restaurantId, 'restaurant_002');
+      expect(context.restaurantId, AppConstants.restaurantId);
       expect(context.userId, 'usr_admin_02');
       expect(context.rol, 'administrador');
     });

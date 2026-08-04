@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:restaurant_app/Presentation/core/constants/app_constants.dart';
-import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
+import 'package:restaurant_app/Presentation/providers/menu/menu_state.dart';
 import 'package:restaurant_app/Presentation/services/menu/public_menu_service.dart';
 
 class PublicMenuNotifier extends StateNotifier<MenuState> {
@@ -16,7 +16,7 @@ class PublicMenuNotifier extends StateNotifier<MenuState> {
 
   Future<void> load([String? restaurantId]) async {
     if (_subscription != null) return;
-    _restaurantId = restaurantId ?? AppConstants.defaultRestaurantId;
+    _restaurantId = AppConstants.restaurantId;
     state = state.copyWith(isLoading: true, clearError: true);
     _subscription = _service
         .watch(_restaurantId!)

@@ -56,8 +56,7 @@ class _CategoriaFormDialogState extends State<CategoriaFormDialog> {
     final now = DateTime.now();
     final categoria = Categoria(
       id: widget.categoria?.id ?? const Uuid().v4(),
-      restaurantId:
-          widget.categoria?.restaurantId ?? sl<TenantContext>().restaurantId,
+      restaurantId: sl<TenantContext>().restaurantId,
       nombre: _nombreCtrl.text.trim(),
       descripcion: _descripcionCtrl.text.trim().isEmpty
           ? null

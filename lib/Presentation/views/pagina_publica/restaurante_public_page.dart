@@ -9,7 +9,7 @@ import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
 import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/pagina_publica/public_config.dart';
-import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
+import 'package:restaurant_app/Presentation/providers/menu/public_menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/menu_image_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -38,7 +38,7 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
     _menuPreviewLoadRequested = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(menuProvider.notifier).loadMenu();
+      ref.read(publicMenuProvider.notifier).load();
     });
   }
 
@@ -533,7 +533,7 @@ class _HeroContent extends StatelessWidget {
                       ),
                     ),
                     child: const Text(
-                      '✦  Bar & Restaurant  ✦',
+                      '✦  Bar&House  ✦',
                       style: TextStyle(
                         color: Color(0xFFE8C87C),
                         fontSize: 11,
@@ -715,7 +715,7 @@ class _CompactInlineTitle extends StatelessWidget {
                 ),
               ),
               Text(
-                'Bar & Restaurant',
+                'Bar&House',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.75),
                   fontSize: 9.5,
@@ -1473,7 +1473,7 @@ class _MenuPreviewSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final menuState = ref.watch(menuProvider);
+    final menuState = ref.watch(publicMenuProvider);
     final productos = menuState.productosDisponibles.take(8).toList();
 
     return Padding(

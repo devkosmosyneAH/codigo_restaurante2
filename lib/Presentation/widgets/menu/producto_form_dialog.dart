@@ -782,7 +782,7 @@ class _ProductoFormDialogState extends State<ProductoFormDialog> {
 
     final now = DateTime.now();
     final tenant = sl<TenantContext>();
-    final restaurantId = widget.producto?.restaurantId ?? tenant.restaurantId;
+    final restaurantId = tenant.restaurantId;
     final userId = tenant.userId ?? 'system';
     final productoId = widget.producto?.id ?? const Uuid().v4();
 

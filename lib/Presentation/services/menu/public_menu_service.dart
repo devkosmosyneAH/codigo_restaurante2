@@ -226,8 +226,9 @@ class PublicMenuService {
     for (final key in ['activo', 'disponible']) {
       final value = map[key];
       if (value is bool) map[key] = value ? 1 : 0;
-      if (value is String)
+      if (value is String) {
         map[key] = value.toLowerCase() == 'true' || value == '1' ? 1 : 0;
+      }
     }
     for (final key in ['created_at', 'updated_at']) {
       final value = map[key];

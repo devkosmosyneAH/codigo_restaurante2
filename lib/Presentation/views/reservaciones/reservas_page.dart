@@ -88,7 +88,7 @@ class _ReservasPageState extends ConsumerState<ReservasPage> {
                 selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
                 startingDayOfWeek: StartingDayOfWeek.monday,
                 calendarFormat: CalendarFormat.month,
-                rowHeight: 38,
+                rowHeight: 36,
                 daysOfWeekHeight: 20,
                 headerStyle: const HeaderStyle(
                   formatButtonVisible: false,

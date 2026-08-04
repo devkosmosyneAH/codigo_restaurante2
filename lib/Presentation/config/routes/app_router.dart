@@ -154,7 +154,7 @@ class AppRouter {
         " isLoading=${activation.isLoading}",
       );
       final isLoginRoute = state.matchedLocation == login;
-      final isActivationRoute = state.matchedLocation == activation;
+      final isActivationRoute = state.matchedLocation == AppRouter.activation;
       final loc = state.matchedLocation;
       final isAuthLoading = auth.isSessionRestoring;
 

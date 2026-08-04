@@ -347,7 +347,7 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
                   height: maxExtent,
                   child: Opacity(
                     opacity: heroOpacity,
-                    child: _HeroContent(config: config),
+                    child: _HeroEntrance(child: _HeroContent(config: config)),
                   ),
                 ),
               ),
@@ -385,6 +385,34 @@ class _HeroDelegate extends SliverPersistentHeaderDelegate {
         tooltip: 'Regresar',
         onPressed: () => Navigator.of(context).maybePop(),
       ),
+    );
+  }
+}
+
+class _HeroEntrance extends StatelessWidget {
+  const _HeroEntrance({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+      child: child,
+      builder: (context, value, child) {
+        final eased = Curves.easeOutCubic.transform(value);
+        return Opacity(
+          opacity: eased,
+          child: Transform.translate(
+            offset: Offset(0, 18 * (1 - eased)),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
@@ -1501,94 +1529,115 @@ class _MenuPreviewSection extends ConsumerWidget {
               ],
             ),
           ),
-          if (menuState.isLoading)
-            const SizedBox(
-              height: 160,
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: AppColors.primary,
-                  strokeWidth: 2,
-                ),
-              ),
-            )
-          else if (productos.isEmpty)
-            _MenuEmptyPlaceholder()
-          else
-            LayoutBuilder(
-              builder: (ctx, cons) {
-                final isDesktop = cons.maxWidth >= 600;
-                if (isDesktop) {
-                  final cols = cons.maxWidth >= 900
-                      ? 5
-                      : cons.maxWidth >= 720
-                      ? 4
-                      : 3;
-                  final cardW = (cons.maxWidth - 40 - (cols - 1) * 12) / cols;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: productos
-                          .map(
-                            (p) => _ProductoCard(
-                              producto: p,
-                              cardWidth: cardW,
-                              inGrid: true,
-                            ),
-                          )
-                          .toList(),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: menuState.isLoading
+                ? const SizedBox(
+                    key: ValueKey('menu-preview-loading'),
+                    height: 160,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                        strokeWidth: 2,
+                      ),
                     ),
-                  );
-                }
-                return SizedBox(
-                  height: 168,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.only(left: 20, right: 8),
-                    itemCount: productos.length,
-                    itemBuilder: (_, i) =>
-                        _ProductoCard(producto: productos[i]),
+                  )
+                : productos.isEmpty
+                ? const KeyedSubtree(
+                    key: ValueKey('menu-preview-empty'),
+                    child: _MenuEmptyPlaceholder(),
+                  )
+                : KeyedSubtree(
+                    key: ValueKey(
+                      'menu-preview-${productos.map((p) => p.id).join('|')}',
+                    ),
+                    child: LayoutBuilder(
+                      builder: (ctx, cons) {
+                        final isDesktop = cons.maxWidth >= 600;
+                        if (isDesktop) {
+                          final cols = cons.maxWidth >= 900
+                              ? 5
+                              : cons.maxWidth >= 720
+                              ? 4
+                              : 3;
+                          final cardW =
+                              (cons.maxWidth - 40 - (cols - 1) * 12) / cols;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: productos
+                                  .map(
+                                    (p) => _ProductoCard(
+                                      producto: p,
+                                      cardWidth: cardW,
+                                      inGrid: true,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          );
+                        }
+                        return SizedBox(
+                          height: 168,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.only(left: 20, right: 8),
+                            itemCount: productos.length,
+                            itemBuilder: (_, i) =>
+                                _ProductoCard(producto: productos[i]),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                );
-              },
-            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
-                child: GestureDetector(
-                  onTap: () => context.go(AppRouter.menuPublico),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                child: _InteractiveScale(
+                  hoverScale: 1.01,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => context.go(AppRouter.menuPublico),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Ver menú completo',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            width: 1.5,
                           ),
                         ),
-                        SizedBox(width: 6),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          color: AppColors.primary,
-                          size: 16,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Ver menú completo',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: AppColors.primary,
+                              size: 16,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -1695,6 +1744,8 @@ class _ProductoCard extends StatelessWidget {
 }
 
 class _MenuEmptyPlaceholder extends StatelessWidget {
+  const _MenuEmptyPlaceholder();
+
   @override
   Widget build(BuildContext context) {
     return Container(

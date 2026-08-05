@@ -42,6 +42,15 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
         restaurantId: cotizacion.restaurantId,
         datos: cotizacion.toMap(),
       );
+      for (final item in cotizacion.items) {
+        await _syncManager.registrarOperacion(
+          tabla: _tableItems,
+          registroId: item.id,
+          operacion: SyncOperation.insert,
+          restaurantId: cotizacion.restaurantId,
+          datos: CotizacionItemModel.fromEntity(item).toMap(),
+        );
+      }
     } catch (e) {
       throw DatabaseException(message: 'Error al crear cotizacion: $e');
     }
@@ -101,6 +110,17 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
   @override
   Future<void> updateCotizacion(CotizacionModel cotizacion) async {
     try {
+      final previousRows = await _dbHelper.query(
+        _tableItems,
+        where: 'cotizacion_id = ?',
+        whereArgs: [cotizacion.id],
+      );
+      final previousIds = previousRows
+          .map((row) => row['id'])
+          .whereType<String>()
+          .toSet();
+      final currentIds = cotizacion.items.map((item) => item.id).toSet();
+
       await _dbHelper.transaction((txn) async {
         await txn.update(
           _tableCotizaciones,
@@ -125,6 +145,25 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
         restaurantId: cotizacion.restaurantId,
         datos: cotizacion.toMap(),
       );
+      for (final removedId in previousIds.difference(currentIds)) {
+        await _syncManager.registrarOperacion(
+          tabla: _tableItems,
+          registroId: removedId,
+          operacion: SyncOperation.delete,
+          restaurantId: cotizacion.restaurantId,
+        );
+      }
+      for (final item in cotizacion.items) {
+        await _syncManager.registrarOperacion(
+          tabla: _tableItems,
+          registroId: item.id,
+          operacion: previousIds.contains(item.id)
+              ? SyncOperation.update
+              : SyncOperation.insert,
+          restaurantId: cotizacion.restaurantId,
+          datos: CotizacionItemModel.fromEntity(item).toMap(),
+        );
+      }
     } catch (e) {
       throw DatabaseException(message: 'Error al actualizar cotizacion: $e');
     }

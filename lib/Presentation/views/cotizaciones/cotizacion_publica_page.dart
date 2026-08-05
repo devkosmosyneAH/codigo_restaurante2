@@ -10,11 +10,21 @@ import 'package:restaurant_app/Presentation/domain/cotizaciones/usecases/cotizac
 import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/cotizaciones/cotizacion_editor_dialog.dart';
+import 'package:restaurant_app/Presentation/services/cotizaciones/public_cotizacion_cloud_service.dart';
 // ── Provider para cargar una cotización por ID ──────────────────────────────
 
 final cotizacionByIdProvider = FutureProvider.autoDispose
     .family<Cotizacion?, String>((ref, id) async {
       final restaurantId = sl<TenantContext>().restaurantId;
+      try {
+        final remote = await sl<PublicCotizacionCloudService>().fetch(
+          restaurantId: restaurantId,
+          cotizacionId: id,
+        );
+        if (remote != null) return remote;
+      } catch (_) {
+        // Permitir la vista local si Firebase no está disponible.
+      }
       final result = await sl<GetCotizaciones>()(restaurantId);
       return result.fold((_) => null, (items) {
         try {

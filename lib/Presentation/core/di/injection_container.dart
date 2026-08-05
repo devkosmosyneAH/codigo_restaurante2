@@ -68,6 +68,7 @@ import 'package:restaurant_app/Presentation/services/clientes/cliente_service_im
 import 'package:restaurant_app/Presentation/services/facturacion/sri_service.dart';
 import 'package:restaurant_app/Presentation/services/firebase_auth_service.dart';
 import 'package:restaurant_app/Presentation/services/cloudinary_upload_service.dart';
+import 'package:restaurant_app/Presentation/services/cotizaciones/public_cotizacion_cloud_service.dart';
 
 /// Service Locator global.
 ///
@@ -108,6 +109,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<CloudinaryUploadService>(
     () => const CloudinaryUploadService(),
+  );
+  sl.registerLazySingleton<PublicCotizacionCloudService>(
+    () => PublicCotizacionCloudService(),
   );
 
   // ── Features ─────────────────────────────────────────────────────
@@ -241,7 +245,9 @@ void _initCotizaciones() {
   sl.registerLazySingleton<CotizacionRepository>(
     () => CotizacionRepositoryImpl(dataSource: sl()),
   );
-  sl.registerLazySingleton(() => CreateCotizacion(sl()));
+  sl.registerLazySingleton(
+    () => CreateCotizacion(sl()),
+  );
   sl.registerLazySingleton(() => GetCotizaciones(sl()));
   sl.registerLazySingleton(() => UpdateCotizacionEstado(sl()));
   sl.registerLazySingleton(() => UpdateCotizacion(sl()));

@@ -741,7 +741,10 @@ class SyncCloudService {
           collection: record.tabla,
           documentId: record.registroId,
           data: _buildPayload(record),
-          merge: false,
+          // Una solicitud pública puede haber llegado antes de que el
+          // dispositivo autenticado procese su sync_log. Conservamos sus
+          // metadatos públicos al materializar la copia local.
+          merge: record.tabla == 'cotizaciones',
         );
       case SyncOperation.update:
         // PATCH/update changes only the current SQLite snapshot fields.

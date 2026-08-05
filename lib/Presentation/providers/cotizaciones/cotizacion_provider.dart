@@ -4,6 +4,7 @@ import 'package:restaurant_app/Presentation/domain/cotizaciones/usecases/cotizac
 import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dart';
 import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion_item.dart';
 import 'package:restaurant_app/Presentation/providers/cotizaciones/cotizacion_cart_provider.dart';
+import 'package:restaurant_app/Presentation/services/cotizaciones/public_cotizacion_cloud_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// Estado de cotizacion.
@@ -24,9 +25,14 @@ class CotizacionState {
 /// Notifier de cotizaciones.
 class CotizacionNotifier extends StateNotifier<CotizacionState> {
   final CreateCotizacion _createCotizacion;
+  final PublicCotizacionCloudService? _publicCloudService;
 
-  CotizacionNotifier({required CreateCotizacion createCotizacion})
+  CotizacionNotifier({
+    required CreateCotizacion createCotizacion,
+    PublicCotizacionCloudService? publicCloudService,
+  })
     : _createCotizacion = createCotizacion,
+      _publicCloudService = publicCloudService,
       super(const CotizacionState());
 
   Future<String?> crearCotizacion({
@@ -80,6 +86,20 @@ class CotizacionNotifier extends StateNotifier<CotizacionState> {
       items: cotItems,
     );
 
+    final publicCloud = _publicCloudService;
+    if (publicCloud != null && !publicCloud.isSignedIn) {
+      try {
+        await publicCloud.submit(cotizacion);
+      } catch (_) {
+        state = state.copyWith(
+          isSaving: false,
+          errorMessage:
+              'No se pudo enviar la solicitud. Verifica tu conexión e inténtalo de nuevo.',
+        );
+        return null;
+      }
+    }
+
     final result = await _createCotizacion(cotizacion);
     return result.fold(
       (f) {
@@ -96,5 +116,10 @@ class CotizacionNotifier extends StateNotifier<CotizacionState> {
 
 final cotizacionProvider =
     StateNotifierProvider<CotizacionNotifier, CotizacionState>((ref) {
-      return CotizacionNotifier(createCotizacion: sl<CreateCotizacion>());
+      return CotizacionNotifier(
+        createCotizacion: sl<CreateCotizacion>(),
+        publicCloudService: sl.isRegistered<PublicCotizacionCloudService>()
+            ? sl<PublicCotizacionCloudService>()
+            : null,
+      );
     });

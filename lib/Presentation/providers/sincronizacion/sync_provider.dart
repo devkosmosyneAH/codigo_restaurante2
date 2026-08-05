@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_cloud_service.dart';
@@ -60,9 +61,7 @@ class SyncState {
         : cloudStatusMessage ?? this.cloudStatusMessage,
     ultimaSync: ultimaSync ?? this.ultimaSync,
     error: clearError ? null : error ?? this.error,
-    successMessage: clearSuccess
-        ? null
-        : successMessage ?? this.successMessage,
+    successMessage: clearSuccess ? null : successMessage ?? this.successMessage,
   );
 }
 
@@ -70,12 +69,15 @@ class SyncNotifier extends StateNotifier<SyncState> {
   SyncNotifier({
     required SyncManager syncManager,
     required SyncCloudService cloudService,
-  })  : _syncManager = syncManager,
-        _cloudService = cloudService,
-        super(const SyncState()) {
+  }) : _syncManager = syncManager,
+       _cloudService = cloudService,
+       super(const SyncState()) {
     loadRegistros();
     checkCloudAvailability();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) => loadRegistros());
+    _timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => loadRegistros(),
+    );
   }
 
   final SyncManager _syncManager;
@@ -148,7 +150,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
         ultimaSync: DateTime.now(),
         cloudAvailable: false,
         cloudStatusMessage: _cloudService.unsupportedPlatformMessage,
-        successMessage: 'Modo local activo: sincronizacion cloud deshabilitada.',
+        successMessage:
+            'Modo local activo: sincronizacion cloud deshabilitada.',
       );
       await loadRegistros();
       return;
@@ -187,6 +190,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     var processed = 0;
     var errors = 0;
+    String? firstError;
     for (final record in pending) {
       try {
         await _cloudService.pushRecord(record);
@@ -212,16 +216,21 @@ class SyncNotifier extends StateNotifier<SyncState> {
           detail: error.toString(),
         );
         errors++;
+        firstError ??= '${record.tabla}/${record.registroId}: $error';
+        debugPrint('SYNC_TAB_PUSH_ERROR $firstError');
       }
     }
+    await loadRegistros();
     state = state.copyWith(
       isSyncing: false,
       ultimaSync: DateTime.now(),
+      error: firstError,
+      clearError: firstError == null,
       successMessage: errors == 0
           ? '$processed operaciones cloud sincronizadas.'
-          : '$processed cloud sincronizadas, $errors con error.',
+          : null,
+      clearSuccess: errors > 0,
     );
-    await loadRegistros();
   }
 
   Future<void> limpiarHistorial({int dias = 7}) async {
@@ -238,10 +247,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     }
   }
 
-  void clearMessages() => state = state.copyWith(
-        clearError: true,
-        clearSuccess: true,
-      );
+  void clearMessages() =>
+      state = state.copyWith(clearError: true, clearSuccess: true);
 }
 
 final syncProvider = StateNotifierProvider<SyncNotifier, SyncState>((ref) {

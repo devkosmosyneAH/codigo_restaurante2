@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_cloud_service.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_manager.dart';
@@ -93,7 +94,7 @@ class HybridSyncOrchestrator {
     // el escritorio. Para una acción explícita intentamos la escritura y
     // dejamos que HTTP determine si realmente hay conexión.
     if (!_online) _online = true;
-    await _runCycle(reason: reason);
+    await _runCycle(reason: reason, rethrowErrors: true);
   }
 
   Future<void> start() async {
@@ -152,7 +153,10 @@ class HybridSyncOrchestrator {
     _started = false;
   }
 
-  Future<void> _runCycle({required String reason}) async {
+  Future<void> _runCycle({
+    required String reason,
+    bool rethrowErrors = false,
+  }) async {
     if (!_started || !_cloudSyncEnabled || _syncInProgress) return;
     if (!_online) return;
 
@@ -178,8 +182,11 @@ class HybridSyncOrchestrator {
       }
 
       await _pushPendingRecords();
-    } catch (_) {
+    } catch (error, stackTrace) {
       // Si la nube falla (auth/config/transitorio), mantenemos modo local.
+      debugPrint('SYNC_CYCLE_ERROR [$reason] $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (rethrowErrors) rethrow;
     } finally {
       _syncInProgress = false;
     }
@@ -189,9 +196,7 @@ class HybridSyncOrchestrator {
   /// no tiene productos. Esto cubre instalaciones anteriores a Firebase
   /// como fuente de verdad y evita exigir que el administrador edite cada
   /// producto manualmente.
-  Future<void> _queueLocalMenuIfCloudIsEmpty({
-    required String tenantId,
-  }) async {
+  Future<void> _queueLocalMenuIfCloudIsEmpty({required String tenantId}) async {
     final remoteProducts = await _cloudService.listCollection(
       restaurantId: tenantId,
       collection: 'productos',
@@ -239,6 +244,7 @@ class HybridSyncOrchestrator {
     final pendientes = await _syncManager.obtenerPendientesParaEnvio(
       limit: _pushBatchSize,
     );
+    final failures = <String>[];
 
     for (final record in pendientes) {
       try {
@@ -252,7 +258,11 @@ class HybridSyncOrchestrator {
           restaurantId: record.restaurantId,
           syncRecordId: record.id,
         );
-      } catch (_) {
+      } catch (error, stackTrace) {
+        debugPrint(
+          'SYNC_PUSH_ERROR [${record.tabla}/${record.registroId}] $error',
+        );
+        debugPrintStack(stackTrace: stackTrace);
         await _syncManager.incrementarIntentos(record.id);
         await _syncManager.registrarAuditoria(
           direction: 'push',
@@ -261,9 +271,17 @@ class HybridSyncOrchestrator {
           registroId: record.registroId,
           restaurantId: record.restaurantId,
           syncRecordId: record.id,
-          detail: 'push_failed',
+          detail: error.toString(),
         );
+        failures.add('${record.tabla}/${record.registroId}: $error');
       }
+    }
+
+    if (failures.isNotEmpty) {
+      throw StateError(
+        'Fallaron ${failures.length} operaciones de sincronizacion. '
+        'Primera causa: ${failures.first}',
+      );
     }
   }
 

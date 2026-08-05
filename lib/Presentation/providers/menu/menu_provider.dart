@@ -73,7 +73,14 @@ class MenuNotifier extends StateNotifier<MenuState> {
   ) async {
     try {
       await callback(reason);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('MENU_SYNC_ERROR [$reason] $error');
+      debugPrintStack(stackTrace: stackTrace);
+      state = state.copyWith(
+        errorMessage:
+            'Guardado localmente, pero no se pudo enviar a Firebase. '
+            'La operacion quedo pendiente: $error',
+      );
       // No bloquea el flujo local del menú si la nube falla.
     }
   }

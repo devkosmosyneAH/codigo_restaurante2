@@ -11,7 +11,9 @@ import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/pagina_publica/public_config.dart';
 import 'package:restaurant_app/Presentation/providers/menu/public_menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
+import 'package:restaurant_app/Presentation/providers/pagina_publica/public_gallery_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/menu_image_loader.dart';
+import 'package:restaurant_app/Presentation/widgets/pagina_publica/public_gallery_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Vista pública del restaurante. Accesible sin autenticación.
@@ -45,6 +47,7 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(publicConfigProvider);
+    final galleryState = ref.watch(publicGalleryProvider);
 
     if (state.isLoading) {
       return const Scaffold(
@@ -107,6 +110,12 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
                             ),
                             child: Column(
                               children: [
+                                PublicGalleryView(
+                                  images: galleryState.images
+                                      .where((image) => image.activo && !image.isCover)
+                                      .take(12)
+                                      .toList(),
+                                ),
                                 if (config.mostrarBotonMenu ||
                                     config.mostrarBotonReservas)
                                   _SoftReveal(
@@ -1690,8 +1699,8 @@ class _ProductoCard extends StatelessWidget {
             ),
             child: MenuImageLoader(
               localCachePath: producto.imagenLocalCachePath as String?,
-              primaryImageValue: producto.drivePublicUrl as String?,
-              fallbackImageValue: producto.imagenUrl as String?,
+              primaryImageValue: producto.imagenUrl as String?,
+              fallbackImageValue: null,
               width: cardWidth,
               height: imgH,
               fit: BoxFit.cover,

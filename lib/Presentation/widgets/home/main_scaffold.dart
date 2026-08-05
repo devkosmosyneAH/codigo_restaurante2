@@ -92,7 +92,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     _NavItem(
       icon: Icons.backup_rounded,
       label: 'Respaldos',
-      path: AppRouter.driveBackup,
+      path: AppRouter.backup,
     ),
   ];
 

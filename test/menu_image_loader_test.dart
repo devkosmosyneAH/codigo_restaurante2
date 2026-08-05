@@ -2,34 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/menu_image_loader.dart';
 
 void main() {
-  group('buildDriveImageCandidates', () {
-    test('returns public image candidates for a drive file id', () {
-      final candidates = buildDriveImageCandidates('abc123_xyz');
-
-      expect(
-        candidates,
-        contains('https://drive.google.com/thumbnail?id=abc123_xyz&sz=w1000'),
+  group('buildImageCandidates', () {
+    test('conserva una URL Cloudinary segura', () {
+      final candidates = buildImageCandidates(
+        'https://res.cloudinary.com/ttviexhh/image/upload/v1/restaurante/menu/a.jpg',
       );
-      expect(
-        candidates,
-        contains('https://drive.google.com/uc?export=view&id=abc123_xyz'),
-      );
+      expect(candidates, [
+        'https://res.cloudinary.com/ttviexhh/image/upload/v1/restaurante/menu/a.jpg',
+      ]);
     });
 
-    test('keeps canonical google drive public urls intact', () {
-      final normalized = normalizeDriveImageUrl(
-        'https://drive.google.com/uc?export=view&id=abc123_xyz',
-      );
-
-      expect(
-        normalized,
-        'https://drive.google.com/uc?export=view&id=abc123_xyz',
-      );
-    });
-
-    test('returns an empty list for blank values', () {
-      expect(buildDriveImageCandidates(null), isEmpty);
-      expect(buildDriveImageCandidates('   '), isEmpty);
+    test('ignora valores vacios y conserva assets locales', () {
+      expect(buildImageCandidates('   '), isEmpty);
+      expect(buildImageCandidates('assets/images/logo.png'), [
+        'assets/images/logo.png',
+      ]);
     });
   });
 }

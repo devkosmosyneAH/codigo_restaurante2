@@ -1161,6 +1161,38 @@ class DatabaseHelper {
         ON categorias (restaurant_id, activo, orden, nombre COLLATE NOCASE)
       ''');
     }
+    if (oldVersion < 38) {
+      await _addColumnIfMissing(db, 'productos', 'cloudinary_public_id', 'TEXT');
+      await _addColumnIfMissing(db, 'productos', 'imagen_width', 'INTEGER');
+      await _addColumnIfMissing(db, 'productos', 'imagen_height', 'INTEGER');
+      await _addColumnIfMissing(db, 'productos', 'imagen_bytes', 'INTEGER');
+      await _addColumnIfMissing(db, 'productos', 'imagen_version', 'INTEGER');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS public_gallery_images (
+          id TEXT PRIMARY KEY,
+          restaurant_id TEXT NOT NULL,
+          tipo TEXT NOT NULL,
+          image_url TEXT NOT NULL,
+          cloudinary_public_id TEXT,
+          width INTEGER,
+          height INTEGER,
+          bytes INTEGER,
+          version INTEGER,
+          orden INTEGER NOT NULL DEFAULT 0,
+          activo INTEGER NOT NULL DEFAULT 1,
+          alt_text TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (restaurant_id) REFERENCES restaurantes(id)
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_public_gallery_restaurant_lookup
+        ON public_gallery_images (restaurant_id, tipo, activo, orden, updated_at)
+      ''');
+      await db.execute('DROP TABLE IF EXISTS drive_connections');
+      await db.execute('UPDATE productos SET drive_file_id = NULL, drive_public_url = NULL');
+    }
   }
 
   static Future<void> _addColumnIfMissing(

@@ -5,12 +5,8 @@ import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_cloud_service.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_manager.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_record.dart';
-import 'package:restaurant_app/Presentation/services/menu/drive_image_sync_queue_service.dart';
-
-// ── Estado ─────────────────────────────────────────────────────────────────────
 
 class SyncState {
-  /// Todos los registros del log (pendientes + sincronizados).
   final List<SyncRecord> registros;
   final bool isLoading;
   final bool isSyncing;
@@ -34,11 +30,9 @@ class SyncState {
   });
 
   List<SyncRecord> get pendientes =>
-      registros.where((r) => !r.sincronizado).toList();
-
+      registros.where((record) => !record.sincronizado).toList();
   List<SyncRecord> get sincronizados =>
-      registros.where((r) => r.sincronizado).toList();
-
+      registros.where((record) => record.sincronizado).toList();
   int get totalPendientes => pendientes.length;
   bool get tienePendientes => pendientes.isNotEmpty;
 
@@ -55,53 +49,40 @@ class SyncState {
     bool clearError = false,
     String? successMessage,
     bool clearSuccess = false,
-  }) {
-    return SyncState(
-      registros: registros ?? this.registros,
-      isLoading: isLoading ?? this.isLoading,
-      isSyncing: isSyncing ?? this.isSyncing,
-      isCheckingCloud: isCheckingCloud ?? this.isCheckingCloud,
-      cloudAvailable: cloudAvailable ?? this.cloudAvailable,
-      cloudStatusMessage: clearCloudStatus
-          ? null
-          : cloudStatusMessage ?? this.cloudStatusMessage,
-      ultimaSync: ultimaSync ?? this.ultimaSync,
-      error: clearError ? null : error ?? this.error,
-      successMessage: clearSuccess
-          ? null
-          : successMessage ?? this.successMessage,
-    );
-  }
+  }) => SyncState(
+    registros: registros ?? this.registros,
+    isLoading: isLoading ?? this.isLoading,
+    isSyncing: isSyncing ?? this.isSyncing,
+    isCheckingCloud: isCheckingCloud ?? this.isCheckingCloud,
+    cloudAvailable: cloudAvailable ?? this.cloudAvailable,
+    cloudStatusMessage: clearCloudStatus
+        ? null
+        : cloudStatusMessage ?? this.cloudStatusMessage,
+    ultimaSync: ultimaSync ?? this.ultimaSync,
+    error: clearError ? null : error ?? this.error,
+    successMessage: clearSuccess
+        ? null
+        : successMessage ?? this.successMessage,
+  );
 }
-
-// ── Notifier ───────────────────────────────────────────────────────────────────
 
 class SyncNotifier extends StateNotifier<SyncState> {
   SyncNotifier({
     required SyncManager syncManager,
     required SyncCloudService cloudService,
-    DriveImageSyncQueueService? driveQueueService,
-  }) : _cloudService = cloudService,
-       _syncManager = syncManager,
-       _driveQueueService = driveQueueService,
-       super(const SyncState()) {
+  })  : _syncManager = syncManager,
+        _cloudService = cloudService,
+        super(const SyncState()) {
     loadRegistros();
     checkCloudAvailability();
-    // Refresca cada 30 segundos para reflejar operaciones recientes de la app
-    _timer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => loadRegistros(),
-    );
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) => loadRegistros());
   }
 
   final SyncManager _syncManager;
   final SyncCloudService _cloudService;
-  final DriveImageSyncQueueService? _driveQueueService;
   Timer? _timer;
 
-  bool _isCloudRecord(SyncRecord record) {
-    return !record.tabla.startsWith('_local_');
-  }
+  bool _isCloudRecord(SyncRecord record) => !record.tabla.startsWith('_local_');
 
   @override
   void dispose() {
@@ -109,29 +90,26 @@ class SyncNotifier extends StateNotifier<SyncState> {
     super.dispose();
   }
 
-  /// Carga todos los registros del sync_log.
   Future<void> loadRegistros() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final pendientes = await _syncManager.obtenerPendientes();
-      final sincronizados = await _syncManager.obtenerSincronizados();
+      final pending = await _syncManager.obtenerPendientes();
+      final synced = await _syncManager.obtenerSincronizados();
       state = state.copyWith(
         isLoading: false,
-        registros: [...pendientes, ...sincronizados],
+        registros: [...pending, ...synced],
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (error) {
+      state = state.copyWith(isLoading: false, error: error.toString());
     }
   }
 
-  /// Verifica si la sincronización en nube está disponible.
   Future<void> checkCloudAvailability() async {
     state = state.copyWith(
       isCheckingCloud: true,
       clearCloudStatus: true,
       clearError: true,
     );
-
     if (!_cloudService.isCloudSyncSupportedPlatform) {
       state = state.copyWith(
         isCheckingCloud: false,
@@ -140,7 +118,6 @@ class SyncNotifier extends StateNotifier<SyncState> {
       );
       return;
     }
-
     try {
       await _cloudService.ensureAvailable();
       state = state.copyWith(
@@ -152,15 +129,11 @@ class SyncNotifier extends StateNotifier<SyncState> {
       state = state.copyWith(
         isCheckingCloud: false,
         cloudAvailable: false,
-        cloudStatusMessage:
-            'Nube no disponible. Revisa la configuracion de Realtime Database.',
+        cloudStatusMessage: 'Nube no disponible. Revisa Realtime Database.',
       );
     }
   }
 
-  /// Sincroniza cada registro pendiente enviandolo a Realtime Database.
-  ///
-  /// Solo marca como sincronizado cuando el push remoto finaliza correctamente.
   Future<void> sincronizarAhora() async {
     if (!state.tienePendientes) {
       state = state.copyWith(
@@ -168,88 +141,53 @@ class SyncNotifier extends StateNotifier<SyncState> {
       );
       return;
     }
-
     state = state.copyWith(isSyncing: true, clearError: true);
-
-    var localOk = 0;
-    var localFailed = 0;
-    var localDeferred = 0;
-
-    if (_driveQueueService != null) {
-      try {
-        final localResult = await _driveQueueService.processPendingOperations(
-          allowInteractiveSignIn: true,
-        );
-        localOk = localResult.succeeded;
-        localFailed = localResult.failed;
-        localDeferred = localResult.deferred;
-      } catch (_) {
-        // Si falla el procesador local, continuamos con la sync cloud.
-      }
-    }
-
     if (!_cloudService.isCloudSyncSupportedPlatform) {
-      final localSummary =
-          'Modo local activo: sync cloud deshabilitada en esta plataforma. '
-          'Drive local: $localOk procesadas, '
-          '$localFailed con error, $localDeferred diferidas';
-
       state = state.copyWith(
         isSyncing: false,
         ultimaSync: DateTime.now(),
         cloudAvailable: false,
         cloudStatusMessage: _cloudService.unsupportedPlatformMessage,
-        successMessage: localSummary,
+        successMessage: 'Modo local activo: sincronizacion cloud deshabilitada.',
       );
       await loadRegistros();
       return;
     }
 
-    final pendientesActuales = await _syncManager.obtenerPendientesParaEnvio(
+    final pending = (await _syncManager.obtenerPendientesParaEnvio(
       limit: 1000,
       forzar: true,
-    );
-    final cloudPendientes = pendientesActuales.where(_isCloudRecord).toList();
-
-    if (cloudPendientes.isEmpty) {
-      final localSummary =
-          'Drive local: $localOk procesadas, $localFailed con error, $localDeferred diferidas';
+    )).where(_isCloudRecord).toList();
+    if (pending.isEmpty) {
       state = state.copyWith(
         isSyncing: false,
         ultimaSync: DateTime.now(),
-        successMessage: localSummary,
+        successMessage: 'No hay operaciones cloud pendientes.',
       );
       await loadRegistros();
       return;
     }
 
-    // Fallar rapido si Realtime Database no esta lista, para evitar
-    // incrementar intentos de cada registro por un problema global.
     try {
       await _cloudService.ensureAvailable();
       state = state.copyWith(
         cloudAvailable: true,
         cloudStatusMessage: 'Nube disponible para sincronizar',
       );
-    } catch (e) {
+    } catch (error) {
       state = state.copyWith(
         isSyncing: false,
         cloudAvailable: false,
-        cloudStatusMessage:
-            'Nube no disponible. Revisa la configuracion de Realtime Database.',
-        error:
-            '${e.toString()}\n'
-            'Drive local: $localOk procesadas, '
-            '$localFailed con error, $localDeferred diferidas.',
+        cloudStatusMessage: 'Nube no disponible. Revisa Realtime Database.',
+        error: error.toString(),
       );
       await loadRegistros();
       return;
     }
 
-    int procesados = 0;
-    int errores = 0;
-
-    for (final record in cloudPendientes) {
+    var processed = 0;
+    var errors = 0;
+    for (final record in pending) {
       try {
         await _cloudService.pushRecord(record);
         await _syncManager.marcarSincronizado(record.id);
@@ -261,8 +199,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
           restaurantId: record.restaurantId,
           syncRecordId: record.id,
         );
-        procesados++;
-      } catch (e) {
+        processed++;
+      } catch (error) {
         await _syncManager.incrementarIntentos(record.id);
         await _syncManager.registrarAuditoria(
           direction: 'push',
@@ -271,30 +209,21 @@ class SyncNotifier extends StateNotifier<SyncState> {
           registroId: record.registroId,
           restaurantId: record.restaurantId,
           syncRecordId: record.id,
-          detail: e.toString(),
+          detail: error.toString(),
         );
-        errores++;
+        errors++;
       }
     }
-
-    final msg = errores == 0
-        ? '$procesados operación(es) cloud sincronizada(s). '
-              'Drive local: $localOk procesadas, '
-              '$localFailed con error, $localDeferred diferidas.'
-        : '$procesados cloud sincronizadas, $errores con error. '
-              'Drive local: $localOk procesadas, '
-              '$localFailed con error, $localDeferred diferidas.';
-
     state = state.copyWith(
       isSyncing: false,
       ultimaSync: DateTime.now(),
-      successMessage: msg,
+      successMessage: errors == 0
+          ? '$processed operaciones cloud sincronizadas.'
+          : '$processed cloud sincronizadas, $errors con error.',
     );
-
     await loadRegistros();
   }
 
-  /// Elimina del log todos los registros ya sincronizados con más de [dias] días.
   Future<void> limpiarHistorial({int dias = 7}) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -302,24 +231,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
       await loadRegistros();
       state = state.copyWith(
         isLoading: false,
-        successMessage: 'Historial limpiado (registros > $dias días)',
+        successMessage: 'Historial limpiado (registros > $dias dias)',
       );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (error) {
+      state = state.copyWith(isLoading: false, error: error.toString());
     }
   }
 
-  void clearMessages() {
-    state = state.copyWith(clearError: true, clearSuccess: true);
-  }
+  void clearMessages() => state = state.copyWith(
+        clearError: true,
+        clearSuccess: true,
+      );
 }
 
-// ── Provider ───────────────────────────────────────────────────────────────────
-
 final syncProvider = StateNotifierProvider<SyncNotifier, SyncState>((ref) {
-  return SyncNotifier(
-    syncManager: sl(),
-    cloudService: sl(),
-    driveQueueService: sl(),
-  );
+  return SyncNotifier(syncManager: sl(), cloudService: sl());
 });

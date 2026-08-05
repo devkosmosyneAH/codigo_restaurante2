@@ -31,7 +31,7 @@ Future<void> initializeDesktopWindow() async {
 }
 
 Future<void> initializePlatformSpecific() async {
-  // No database initialization required when using Firebase and Drive only.
+  // No database initialization is required during app startup.
   // Mantener deshabilitado cualquier acceso a SQLite local en el arranque.
 }
 

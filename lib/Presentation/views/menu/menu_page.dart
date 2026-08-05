@@ -2,23 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:restaurant_app/Presentation/config/routes/app_router.dart';
-import 'package:restaurant_app/Presentation/core/config/app_environment.dart';
-import 'package:restaurant_app/Presentation/core/di/injection_container.dart';
-import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
-import 'package:restaurant_app/Presentation/providers/menu/drive_connection_provider.dart';
 import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
-import 'package:restaurant_app/Presentation/services/menu/drive_image_sync_queue_service.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/categoria_form_dialog.dart';
-import 'package:restaurant_app/Presentation/widgets/menu/drive_help_dialog.dart';
-import 'package:restaurant_app/Presentation/widgets/menu/menu_sync_diagnostics_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/producto_card.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/producto_form_dialog.dart';
-import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
-/// Página principal del Menú.
-///
-/// Muestra categorías como pestañas (TabBar) y los productos de cada categoría
-/// en un grid con opciones de CRUD y toggle de disponibilidad.
+/// Administración del menú. Las imágenes se gestionan mediante Cloudinary;
+/// Firebase conserva el producto y sus metadatos.
 class MenuPage extends ConsumerStatefulWidget {
   const MenuPage({super.key});
 
@@ -28,750 +18,228 @@ class MenuPage extends ConsumerStatefulWidget {
 
 class _MenuPageState extends ConsumerState<MenuPage>
     with TickerProviderStateMixin {
-  TabController? _tabController;
-  int _tabCount = 0;
+  TabController? _tabs;
 
   @override
   void initState() {
     super.initState();
-    debugPrint('🟢 MENU_PAGE INIT');
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(menuProvider.notifier).loadMenu();
-      // Verificar sesión Drive silenciosamente al entrar al panel de menú.
-      // Si no hay sesión previa, mostrará el banner de "Conectar Drive".
-      if (AppEnvironment.isDriveConfigured) {
-        ref.read(driveConnectionProvider.notifier).checkSilently();
-      }
+      if (mounted) ref.read(menuProvider.notifier).loadMenu();
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    debugPrint('🟡 MENU_PAGE didChangeDependencies');
-  }
-
-  void _syncTabController(int categoriaCount) {
-    // Incluye pestaña "Todos" al inicio.
-    final totalTabs = categoriaCount + 1;
-    final needsRebuild =
-        _tabController == null ||
-        _tabCount != totalTabs ||
-        _tabController!.length != totalTabs;
-
-    if (needsRebuild) {
-      _tabController?.dispose();
-      _tabController = TabController(
-        length: totalTabs,
-        vsync: this,
-        initialIndex: 0,
-      );
-      _tabCount = totalTabs;
-      _tabController!.addListener(() {
-        if (_tabController == null || _tabController!.indexIsChanging) {
-          return;
-        }
-
-        final notifier = ref.read(menuProvider.notifier);
-        final state = ref.read(menuProvider);
-        final tabIndex = _tabController!.index;
-
-        if (tabIndex <= 0) {
-          notifier.seleccionarCategoria(null);
-          return;
-        }
-
-        final categoryIndex = tabIndex - 1;
-        if (categoryIndex >= state.categorias.length) {
-          notifier.seleccionarCategoria(null);
-          return;
-        }
-
-        final cat = state.categorias[categoryIndex];
-        notifier.seleccionarCategoria(cat.id);
-      });
-    }
-
-    if (_tabController != null && _tabController!.index >= totalTabs) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _tabController == null) return;
-        _tabController!.animateTo(0);
-      });
-    }
-  }
-
-  @override
-  void deactivate() {
-    debugPrint('🟠 MENU_PAGE DEACTIVATE');
-    super.deactivate();
   }
 
   @override
   void dispose() {
-    debugPrint('💀 MENU_PAGE DISPOSE');
-    debugPrint(StackTrace.current.toString());
-    _tabController?.dispose();
+    _tabs?.dispose();
     super.dispose();
   }
 
-  // ── Acciones de Categoría ──────────────────────────────────────
-
-  Future<void> _crearCategoria() async {
-    final cat = await CategoriaFormDialog.show(context);
-    if (cat == null || !mounted) return;
-    final ok = await ref.read(menuProvider.notifier).crearCategoria(cat);
-    if (!ok && mounted) {
-      _showError(ref.read(menuProvider).errorMessage);
-    }
+  void _syncTabs(int count) {
+    final length = count + 1;
+    if (_tabs != null && _tabs!.length == length) return;
+    _tabs?.dispose();
+    _tabs = TabController(length: length, vsync: this);
+    _tabs!.addListener(() {
+      if (_tabs!.indexIsChanging) return;
+      final state = ref.read(menuProvider);
+      final index = _tabs!.index;
+      ref.read(menuProvider.notifier).seleccionarCategoria(
+        index == 0 ? null : state.categorias[index - 1].id,
+      );
+    });
   }
 
-  Future<void> _editarCategoria(int categoriaIndex) async {
-    final state = ref.read(menuProvider);
-    if (categoriaIndex >= state.categorias.length) return;
-    final cat = state.categorias[categoriaIndex];
-    final updated = await CategoriaFormDialog.show(context, categoria: cat);
-    if (updated == null || !mounted) return;
-    final ok = await ref
-        .read(menuProvider.notifier)
-        .actualizarCategoria(updated);
-    if (!ok && mounted) {
-      _showError(ref.read(menuProvider).errorMessage);
-    }
+  Future<void> _createCategory() async {
+    final category = await CategoriaFormDialog.show(context);
+    if (!mounted || category == null) return;
+    final ok = await ref.read(menuProvider.notifier).crearCategoria(category);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
-  Future<void> _eliminarCategoria(int categoriaIndex) async {
+  Future<void> _editCategory(int index) async {
     final state = ref.read(menuProvider);
-    if (categoriaIndex >= state.categorias.length) return;
-    final cat = state.categorias[categoriaIndex];
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar Categoría'),
-        content: Text(
-          '¿Eliminar "${cat.nombre}"? Los productos de esta categoría quedarán sin categoría.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    if (index < 0 || index >= state.categorias.length) return;
+    final updated = await CategoriaFormDialog.show(
+      context,
+      categoria: state.categorias[index],
     );
-    if (confirm != true || !mounted) return;
-    final ok = await ref.read(menuProvider.notifier).eliminarCategoria(cat.id);
-    if (!ok && mounted) {
-      _showError(ref.read(menuProvider).errorMessage);
-    }
+    if (!mounted || updated == null) return;
+    final ok = await ref.read(menuProvider.notifier).actualizarCategoria(updated);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
-  // ── Acciones de Producto ───────────────────────────────────────
+  Future<void> _deleteCategory(int index) async {
+    final state = ref.read(menuProvider);
+    if (index < 0 || index >= state.categorias.length) return;
+    final category = state.categorias[index];
+    final confirmed = await _confirm(
+      'Eliminar categoría',
+      '¿Eliminar "${category.nombre}"? Los productos quedarán sin categoría.',
+    );
+    if (!mounted || confirmed != true) return;
+    final ok = await ref.read(menuProvider.notifier).eliminarCategoria(category.id);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
+  }
 
-  Future<void> _crearProducto() async {
+  Future<void> _createProduct() async {
     final state = ref.read(menuProvider);
     if (state.categorias.isEmpty) {
-      _showSnackbar('Crea al menos una categoría primero.');
+      _showMessage('Crea al menos una categoría primero.');
       return;
     }
-    final producto = await ProductoFormDialog.show(
+    final product = await ProductoFormDialog.show(
       context,
       categorias: state.categorias,
     );
-    if (producto == null || !mounted) return;
-    final ok = await ref.read(menuProvider.notifier).crearProducto(producto);
-    if (!ok && mounted) {
-      await _cleanupFailedProductImage(
-        producto.driveFileId,
-        sl<TenantContext>().restaurantId,
-      );
-      _showError(ref.read(menuProvider).errorMessage);
-    }
+    if (!mounted || product == null) return;
+    final ok = await ref.read(menuProvider.notifier).crearProducto(product);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
-  Future<void> _editarProducto(String productoId) async {
+  Future<void> _editProduct(String id) async {
     final state = ref.read(menuProvider);
-    final producto = state.productos
-        .where((p) => p.id == productoId)
-        .firstOrNull;
-    if (producto == null) return;
+    final product = state.productos.where((p) => p.id == id).firstOrNull;
+    if (product == null) return;
     final updated = await ProductoFormDialog.show(
       context,
-      producto: producto,
+      producto: product,
       categorias: state.categorias,
     );
-    if (updated == null || !mounted) return;
-    final ok = await ref
-        .read(menuProvider.notifier)
-        .actualizarProducto(updated);
-    if (!ok && mounted) {
-      if (updated.driveFileId != producto.driveFileId) {
-        await _cleanupFailedProductImage(
-          updated.driveFileId,
-          sl<TenantContext>().restaurantId,
-        );
-      }
-      _showError(ref.read(menuProvider).errorMessage);
-    }
+    if (!mounted || updated == null) return;
+    final ok = await ref.read(menuProvider.notifier).actualizarProducto(updated);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
-  Future<void> _eliminarProducto(String productoId, String nombre) async {
-    try {
-      debugPrint('MENU_DELETE [1] Entrando al método de eliminación');
-      debugPrint(
-        'MENU_DELETE [2] Producto recibido id=$productoId nombre=$nombre',
-      );
-
-      final producto = ref
-          .read(menuProvider)
-          .productos
-          .where((p) => p.id == productoId)
-          .firstOrNull;
-      final driveFileId = producto?.driveFileId;
-      final restaurantId = sl<TenantContext>().restaurantId;
-
-      debugPrint(
-        'MENU_DELETE [3] Producto encontrado=${producto != null} driveFileId=${driveFileId ?? 'null'} restaurantId=$restaurantId',
-      );
-
-      debugPrint('MENU_DELETE [4] Abriendo confirmación de eliminación');
-      debugPrint('SHOW_DIALOG -> antes');
-      late bool? confirm;
-      try {
-        confirm = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Eliminar Producto'),
-            content: Text('¿Eliminar "$nombre" del menú?'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  debugPrint(
-                    'NAVIGATION -> menu_page.dart: eliminarProducto -> dialog cancelar -> pop(false)',
-                  );
-                  Navigator.of(dialogContext).pop(false);
-                },
-                child: const Text('Cancelar'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
-                ),
-                onPressed: () {
-                  debugPrint(
-                    'NAVIGATION -> menu_page.dart: eliminarProducto -> dialog eliminar -> pop(true)',
-                  );
-                  Navigator.of(dialogContext).pop(true);
-                },
-                child: const Text('Eliminar'),
-              ),
-            ],
-          ),
-        );
-        debugPrint('SHOW_DIALOG -> después');
-        debugPrint('MENU_DELETE [5] Confirmación result=$confirm');
-      } catch (e, s) {
-        debugPrint('SHOW_DIALOG ERROR');
-        debugPrint(e.toString());
-        debugPrint(StackTrace.current.toString());
-        debugPrint(s.toString());
-        rethrow;
-      }
-
-      if (confirm != true || !mounted) {
-        debugPrint('MENU_DELETE [6] Eliminación cancelada o widget no montado');
-        return;
-      }
-
-      debugPrint('MENU_DELETE [15] Invocando notifier.eliminarProducto');
-      final ok = await ref
-          .read(menuProvider.notifier)
-          .eliminarProducto(productoId);
-      debugPrint('MENU_DELETE [16] Resultado notifier.eliminarProducto=$ok');
-
-      if (!ok && mounted) {
-        final msg = ref.read(menuProvider).errorMessage;
-        debugPrint('MENU_DELETE [17] Error desde provider=$msg');
-        _showError(msg);
-      }
-
-      // Delete the remote image only after the product deletion succeeds.
-      if (ok && driveFileId != null && driveFileId.isNotEmpty) {
-        final driveQueue = sl<DriveImageSyncQueueService>();
-        await driveQueue.enqueueDeleteImage(
-          restaurantId: restaurantId,
-          fileId: driveFileId,
-        );
-        await driveQueue.processPendingOperations();
-      }
-
-      debugPrint('MENU_DELETE [18] Fin del método de eliminación');
-    } catch (e, s) {
-      debugPrint('MENU_DELETE ERROR [page]');
-      debugPrint(e.toString());
-      debugPrint(StackTrace.current.toString());
-      debugPrint(s.toString());
-      rethrow;
-    }
+  Future<void> _deleteProduct(String id, String name) async {
+    final confirmed = await _confirm('Eliminar producto', '¿Eliminar "$name" del menú?');
+    if (!mounted || confirmed != true) return;
+    final ok = await ref.read(menuProvider.notifier).eliminarProducto(id);
+    if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
-  // ── Helpers de UI ──────────────────────────────────────────────
+  Future<bool?> _confirm(String title, String message) => showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Eliminar')),
+      ],
+    ),
+  );
 
-  void _showError(String? msg) {
-    if (msg == null) return;
+  void _showMessage(String message) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+  void _showError(String? message) {
+    if (message == null || message.isEmpty) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
-
-  void _showSnackbar(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Future<void> _cleanupFailedProductImage(
-    String? fileId,
-    String restaurantId,
-  ) async {
-    final normalized = fileId?.trim() ?? '';
-    if (normalized.isEmpty) return;
-    try {
-      final queue = sl<DriveImageSyncQueueService>();
-      await queue.enqueueDeleteImage(
-        restaurantId: restaurantId,
-        fileId: normalized,
-      );
-      await queue.processPendingOperations(maxToProcess: 2);
-    } catch (e, st) {
-      debugPrint('MENU_IMAGE_CLEANUP_ERROR: $e\n$st');
-    }
-  }
-
-  void _openPublicPreview() {
-    context.push(AppRouter.menuPublico);
-  }
-
-  Future<void> _openSyncDiagnostics() {
-    return MenuSyncDiagnosticsDialog.show(context);
-  }
-
-  // ── Build ──────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🔵 MENU_PAGE BUILD');
     final state = ref.watch(menuProvider);
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    _syncTabController(state.categorias.length);
+    _syncTabs(state.categorias.length);
+    final tabs = _tabs;
+    final productsByTab = <List<dynamic>>[
+      state.productos,
+      ...state.categorias.map((category) => state.productos.where((p) => p.categoriaId == category.id).toList()),
+    ];
 
     return Scaffold(
       body: state.isLoading
-          ? const SkeletonListPlaceholder()
+          ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // ── Header ─────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  color: colorScheme.surface,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Menú',
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '${state.totalProductos} productos · '
-                                  '${state.totalCategorias} categorías',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            OutlinedButton.icon(
-                              onPressed: _openPublicPreview,
-                              icon: const Icon(
-                                Icons.visibility_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('Vista cliente'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: _openSyncDiagnostics,
-                              icon: const Icon(
-                                Icons.health_and_safety_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('Diagnóstico'),
-                            ),
-                            const SizedBox(width: 8),
-                            // Botón nueva categoría
-                            OutlinedButton.icon(
-                              onPressed: _crearCategoria,
-                              icon: const Icon(
-                                Icons.create_new_folder_outlined,
-                                size: 18,
-                              ),
-                              label: const Text('Categoría'),
-                            ),
-                            const SizedBox(width: 8),
-                            // Botón nuevo producto
-                            FilledButton.icon(
-                              onPressed: _crearProducto,
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Producto'),
-                            ),
+                            Text('Menú', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                            Text('${state.totalProductos} productos · ${state.totalCategorias} categorías'),
                           ],
                         ),
                       ),
+                      OutlinedButton.icon(onPressed: () => context.push(AppRouter.menuPublico), icon: const Icon(Icons.visibility_outlined), label: const Text('Vista cliente')),
+                      const SizedBox(width: 8),
                     ],
                   ),
                 ),
-
-                // ── Banner de estado Drive ──────────────────────────
-                if (AppEnvironment.isDriveConfigured)
-                  _buildDriveBanner(context, ref),
-
-                // ── TabBar ─────────────────────────────────────────
-                if (_tabController != null)
-                  ColoredBox(
-                    color: colorScheme.surface,
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      tabs: [
-                        const Tab(text: 'Todos'),
-                        ...state.categorias.map(
-                          (cat) => Tab(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(cat.nombre),
-                                const SizedBox(width: 4),
-                                // Menú contextual de la categoría
-                                InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTapDown: (details) {
-                                    final idx = state.categorias.indexOf(cat);
-                                    _showCategoriaMenu(
-                                      context,
-                                      details.globalPosition,
-                                      idx,
-                                    );
-                                  },
-                                  child: Icon(
-                                    Icons.more_vert,
-                                    size: 14,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      OutlinedButton.icon(onPressed: _createCategory, icon: const Icon(Icons.create_new_folder_outlined), label: const Text('Categoría')),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Producto')),
+                    ],
                   ),
-
-                // ── Grid de productos ──────────────────────────────
+                ),
+                const SizedBox(height: 8),
+                if (tabs != null)
+                  TabBar(
+                    controller: tabs,
+                    isScrollable: true,
+                    tabs: [
+                      const Tab(text: 'Todos'),
+                      ...state.categorias.asMap().entries.map((entry) => Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(entry.value.nombre),
+                            IconButton(icon: const Icon(Icons.more_vert, size: 16), onPressed: () => _categoryMenu(entry.key)),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ),
                 Expanded(
-                  child: _tabController == null
+                  child: tabs == null
                       ? const SizedBox.shrink()
                       : TabBarView(
-                          controller: _tabController,
-                          children: [
-                            // Pestaña "Todos"
-                            _buildProductGrid(state.productos, state),
-                            // Una pestaña por categoría
-                            ...state.categorias.map(
-                              (cat) => _buildProductGrid(
-                                state.productos
-                                    .where((p) => p.categoriaId == cat.id)
-                                    .toList(),
-                                state,
-                              ),
-                            ),
-                          ],
+                          controller: tabs,
+                          children: productsByTab.map((products) => _productGrid(products, state)).toList(),
                         ),
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _crearProducto,
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo producto'),
-        tooltip: 'Agregar producto al menú',
-      ),
+      floatingActionButton: FloatingActionButton.extended(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Nuevo producto')),
     );
   }
 
-  Widget _buildProductGrid(List<dynamic> productos, MenuState state) {
-    if (productos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.fastfood_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No hay productos en esta categoría',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            FilledButton.tonalIcon(
-              onPressed: _crearProducto,
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar producto'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final maxExtent = width < 520
-              ? 220.0
-              : width < 900
-              ? 260.0
-              : 290.0;
-          final aspect = width < 520 ? 0.78 : 0.84;
-          return GridView.builder(
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: maxExtent,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: aspect,
-            ),
-            itemCount: productos.length,
-            itemBuilder: (_, i) {
-              if (i < 0 || i >= productos.length) {
-                return const SizedBox.shrink();
-              }
-
-              final p = productos[i];
-              final catNombre = state.categorias
-                  .where((c) => c.id == p.categoriaId)
-                  .map((c) => c.nombre)
-                  .firstOrNull;
-              return ProductoCard(
-                producto: p,
-                categoriaNombre: catNombre,
-                onEdit: () => _editarProducto(p.id),
-                onDelete: () => _eliminarProducto(p.id, p.nombre),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  void _showCategoriaMenu(
-    BuildContext context,
-    Offset position,
-    int categoriaIndex,
-  ) {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    showMenu<String>(
+  void _categoryMenu(int index) {
+    showModalBottomSheet<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromLTWH(position.dx, position.dy, 0, 0),
-        Offset.zero & overlay.size,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Editar'), onTap: () => Navigator.pop(context, 'edit')),
+          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Eliminar'), onTap: () => Navigator.pop(context, 'delete')),
+        ]),
       ),
-      items: [
-        const PopupMenuItem(
-          value: 'edit',
-          child: ListTile(
-            leading: Icon(Icons.edit_outlined),
-            title: Text('Editar'),
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: ListTile(
-            leading: Icon(Icons.delete_outline, color: Colors.red),
-            title: Text('Eliminar', style: TextStyle(color: Colors.red)),
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    ).then((val) {
-      if (val == 'edit') _editarCategoria(categoriaIndex);
-      if (val == 'delete') _eliminarCategoria(categoriaIndex);
+    ).then((value) {
+      if (value == 'edit') _editCategory(index);
+      if (value == 'delete') _deleteCategory(index);
     });
   }
-  // ── Banner de Drive ────────────────────────────────────────────
 
-  Widget _buildDriveBanner(BuildContext context, WidgetRef ref) {
-    final drive = ref.watch(driveConnectionProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (drive.isConnected) {
-      return Container(
-        width: double.infinity,
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              Icons.cloud_done_outlined,
-              size: 16,
-              color: colorScheme.onSecondaryContainer,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Google Drive conectado${drive.email != null ? ' · ${drive.email}' : ''}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSecondaryContainer,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (drive.isChecking || drive.isUnknown) {
-      return Container(
-        width: double.infinity,
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Verificando conexión Google Drive...',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Desconectado o error.
-    final isPopupBlocked =
-        drive.isPopupBlocked &&
-        drive.status == DriveConnectionStatus.disconnected;
-    return Container(
-      width: double.infinity,
-      color: colorScheme.errorContainer.withValues(alpha: 0.5),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: 16,
-            color: colorScheme.onErrorContainer,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              isPopupBlocked
-                  ? 'Google Drive: popup bloqueado. Permite popups en este navegador y vuelve a intentarlo.'
-                  : (drive.error != null
-                        ? 'Drive no conectado: ${drive.error}'
-                        : 'Google Drive no conectado. Las fotos de productos no se subirán.'),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: Size.zero,
-              foregroundColor: colorScheme.onErrorContainer,
-            ),
-            onPressed: () => _connectDriveFromBanner(ref),
-            child: const Text('Conectar', style: TextStyle(fontSize: 12)),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: Size.zero,
-              foregroundColor: colorScheme.onErrorContainer,
-            ),
-            onPressed: () => DriveHelpDialog.show(context, ref),
-            child: const Text('Ayuda', style: TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
+  Widget _productGrid(List<dynamic> products, MenuState state) {
+    if (products.isEmpty) return Center(child: FilledButton.icon(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Agregar producto')));
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 300, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: .84),
+      itemCount: products.length,
+      itemBuilder: (_, index) {
+        final product = products[index];
+        final categoryName = state.categorias.where((c) => c.id == product.categoriaId).map((c) => c.nombre).firstOrNull;
+        return ProductoCard(producto: product, categoriaNombre: categoryName, onEdit: () => _editProduct(product.id), onDelete: () => _deleteProduct(product.id, product.nombre));
+      },
     );
-  }
-
-  Future<void> _connectDriveFromBanner(WidgetRef ref) async {
-    final connected = await ref
-        .read(driveConnectionProvider.notifier)
-        .connectInteractively();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            connected
-                ? 'Google Drive conectado correctamente.'
-                : 'No se pudo conectar Google Drive. Verifica los permisos.',
-          ),
-          backgroundColor: connected
-              ? Theme.of(context).colorScheme.secondary
-              : Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
   }
 }

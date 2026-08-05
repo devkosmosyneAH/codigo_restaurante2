@@ -19,29 +19,16 @@ class AuthEmailPasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
               enabled: !isLoading,
               decoration: const InputDecoration(
                 hintText: 'Correo electrónico',
+                labelText: 'Correo electronico',
                 prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(),
               ),
@@ -54,6 +41,7 @@ class AuthEmailPasswordForm extends StatelessWidget {
               enabled: !isLoading,
               decoration: const InputDecoration(
                 hintText: 'Contraseña',
+                labelText: 'Contrasena',
                 prefixIcon: Icon(Icons.lock_outline),
                 border: OutlineInputBorder(),
               ),
@@ -85,9 +73,7 @@ class AuthEmailPasswordForm extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

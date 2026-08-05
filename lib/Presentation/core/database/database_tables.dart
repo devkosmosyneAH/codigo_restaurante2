@@ -17,8 +17,8 @@ class DatabaseTables {
     _createCategoriasPublicLookupIndex,
     _createProductosTable,
     _createProductosPublicLookupIndex,
-    _createDriveConnectionsTable,
-    _createDriveConnectionsRestaurantUniqueIndex,
+    _createPublicGalleryImagesTable,
+    _createPublicGalleryImagesLookupIndex,
     _createVariantesTable,
     _createVariantesProductoLookupIndex,
     _createPedidosTable,
@@ -139,8 +139,11 @@ class DatabaseTables {
       descripcion TEXT,
       precio REAL NOT NULL,
       imagen_url TEXT,
-      drive_file_id TEXT,
-      drive_public_url TEXT,
+      cloudinary_public_id TEXT,
+      imagen_width INTEGER,
+      imagen_height INTEGER,
+      imagen_bytes INTEGER,
+      imagen_version INTEGER,
       imagen_local_cache_path TEXT,
       disponible INTEGER NOT NULL DEFAULT 1,
       activo INTEGER NOT NULL DEFAULT 1,
@@ -156,25 +159,29 @@ class DatabaseTables {
     ON productos (restaurant_id, activo, disponible, categoria_id, nombre COLLATE NOCASE)
   ''';
 
-  // ── Conexión Drive por Tenant ───────────────────────────────────
-  static const String _createDriveConnectionsTable = '''
-    CREATE TABLE IF NOT EXISTS drive_connections (
+  static const String _createPublicGalleryImagesTable = '''
+    CREATE TABLE IF NOT EXISTS public_gallery_images (
       id TEXT PRIMARY KEY,
       restaurant_id TEXT NOT NULL,
-      folder_id TEXT NOT NULL,
-      folder_name TEXT NOT NULL,
-      owner_email TEXT,
-      public_share_enabled INTEGER NOT NULL DEFAULT 0,
-      created_by TEXT,
+      tipo TEXT NOT NULL,
+      image_url TEXT NOT NULL,
+      cloudinary_public_id TEXT,
+      width INTEGER,
+      height INTEGER,
+      bytes INTEGER,
+      version INTEGER,
+      orden INTEGER NOT NULL DEFAULT 0,
+      activo INTEGER NOT NULL DEFAULT 1,
+      alt_text TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (restaurant_id) REFERENCES restaurantes(id)
     )
   ''';
 
-  static const String _createDriveConnectionsRestaurantUniqueIndex = '''
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_drive_connections_restaurant
-    ON drive_connections (restaurant_id)
+  static const String _createPublicGalleryImagesLookupIndex = '''
+    CREATE INDEX IF NOT EXISTS idx_public_gallery_restaurant_lookup
+    ON public_gallery_images (restaurant_id, tipo, activo, orden, updated_at)
   ''';
 
   // ── Variantes de Producto ──────────────────────────────────────────

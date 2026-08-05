@@ -12,7 +12,7 @@
           "$productoId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
-            ".validate": "newData.hasChildren(['id', 'restaurant_id', 'nombre', 'precio']) && newData.child('restaurant_id').val() == $restaurantId && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('precio').isNumber() && newData.child('precio').val() >= 0"
+            ".validate": "newData.child('deleted_at').exists() || (newData.hasChildren(['id', 'restaurant_id', 'nombre', 'precio']) && newData.child('restaurant_id').val() == $restaurantId && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('precio').isNumber() && newData.child('precio').val() >= 0)"
           }
         },
 
@@ -20,7 +20,7 @@
           "$categoriaId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
-            ".validate": "newData.hasChildren(['id', 'restaurant_id', 'nombre']) && newData.child('restaurant_id').val() == $restaurantId && newData.child('nombre').isString() && newData.child('nombre').val().length > 0"
+            ".validate": "newData.child('deleted_at').exists() || (newData.hasChildren(['id', 'restaurant_id', 'nombre']) && newData.child('restaurant_id').val() == $restaurantId && newData.child('nombre').isString() && newData.child('nombre').val().length > 0)"
           }
         },
 
@@ -28,7 +28,7 @@
           "$varianteId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
-            ".validate": "newData.hasChildren(['id', 'producto_id', 'nombre', 'precio']) && newData.child('nombre').isString() && newData.child('precio').isNumber() && newData.child('precio').val() >= 0"
+            ".validate": "newData.child('deleted_at').exists() || (newData.hasChildren(['id', 'producto_id', 'nombre', 'precio']) && newData.child('nombre').isString() && newData.child('precio').isNumber() && newData.child('precio').val() >= 0)"
           }
         },
 
@@ -36,6 +36,13 @@
           ".read": "$restaurantId == 'la_pena_001'",
           ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
           ".validate": "newData.hasChildren()"
+        },
+        "public_gallery_images": {
+          "$imageId": {
+            ".read": "$restaurantId == 'la_pena_001'",
+            ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
+            ".validate": "newData.child('deleted_at').exists() || (newData.hasChildren(['id', 'restaurant_id', 'tipo', 'image_url']) && newData.child('restaurant_id').val() == $restaurantId && (newData.child('tipo').val() == 'portada' || newData.child('tipo').val() == 'galeria') && newData.child('image_url').isString())"
+          }
         },
 
         "mesas": {
@@ -86,12 +93,12 @@
       }
     },
 
-    "sync_audit": {
-      "$auditId": {
-        ".read": "auth != null && data.exists() && data.child('restaurant_id').val() == 'la_pena_001'",
-        ".write": false
-      }
-    },
+  "sync_audit": {
+    "$auditId": {
+      ".read": "auth != null && data.exists() && data.child('restaurant_id').val() == 'la_pena_001'",
+      ".write": "auth != null && newData.child('restaurant_id').val() == 'la_pena_001'"
+    }
+  },
 
     "auth": {
       "$uid": {

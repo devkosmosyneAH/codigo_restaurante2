@@ -9,7 +9,6 @@ import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/entities/usuarios/usuario.dart';
 import 'package:restaurant_app/Presentation/providers/auth/activation_provider.dart';
 import 'package:restaurant_app/Presentation/services/firebase_auth_service.dart';
-import 'package:restaurant_app/Presentation/services/menu/drive_menu_connection_service_web.dart';
 import 'package:restaurant_app/Presentation/services/session_service.dart';
 
 /// Maneja la sesión activa del usuario autenticado.
@@ -200,9 +199,6 @@ class AuthChangeNotifier extends ChangeNotifier {
     final hadUser = _usuario != null;
     _usuario = null;
     sl<TenantContext>().clear();
-    if (sl.isRegistered<DriveMenuConnectionService>()) {
-      await sl<DriveMenuConnectionService>().signOut();
-    }
     await sl<FirebaseAuthService>().signOut();
     if (hadUser) {
       debugPrint("AUTH notifyListeners() - logout");

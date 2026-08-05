@@ -31,7 +31,7 @@ class AppConstants {
   // ── Base de datos ────────────────────────────────────────────────────────
   /// Nombre único de la base SQLite compartido por móvil y desktop.
   static const String databaseName = 'data.db';
-  static const int databaseVersion = 37;
+  static const int databaseVersion = 38;
 
   // ── Facturación electrónica / SRI ───────────────────────────────────────
   /// Endpoint base del backend puente para facturación electrónica.

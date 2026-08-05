@@ -13,7 +13,6 @@ import 'package:restaurant_app/Presentation/core/firebase/firebase_initializer.d
 import 'package:restaurant_app/Presentation/core/theme/app_theme.dart';
 import 'package:restaurant_app/Presentation/providers/auth/activation_provider.dart';
 import 'package:restaurant_app/Presentation/providers/auth/auth_provider.dart';
-import 'package:restaurant_app/Presentation/services/google_auth_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -54,15 +53,6 @@ Future<void> main() async {
 
         debugPrint('STEP 5 - FirebaseAppInitializer.initialize');
         await FirebaseAppInitializer.initialize();
-
-        debugPrint('STEP 5.1 - GoogleAuthService.initialize/restoreSession');
-        final googleAuth = GoogleAuthService.instance;
-        await googleAuth.initialize();
-        await googleAuth.restoreSession();
-        // Rehidrata Drive de forma silenciosa cuando Google conserva la
-        // sesión. No abre OAuth al arrancar ni realiza llamadas de catálogo.
-        final driveRestored = await googleAuth.restoreDriveSessionSilently();
-        debugPrint('STEP 5.2 - Drive session restored=$driveRestored');
 
         debugPrint('STEP 6 - initDependencies');
         await initDependencies();

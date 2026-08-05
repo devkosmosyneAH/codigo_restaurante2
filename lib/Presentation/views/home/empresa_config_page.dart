@@ -19,6 +19,7 @@ import 'package:restaurant_app/Presentation/core/utils/image_picker_util.dart';
 import 'package:restaurant_app/Presentation/core/utils/public_route_url_builder.dart';
 import 'package:restaurant_app/Presentation/entities/pagina_publica/public_config.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/pagina_publica/public_gallery_editor.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Página de configuración institucional del negocio.
@@ -55,6 +56,7 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
   bool _mostrarReservas = true;
   bool _cocinaAutomatica = false;
   bool _initialized = false;
+  final bool _showLegacyLogoEditor = false;
 
   @override
   void initState() {
@@ -152,7 +154,7 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
       telefonoSecundario: _telefonoSecundarioCtrl.text.trim(),
       emailContacto: _emailContactoCtrl.text.trim(),
       emailSecundario: _emailSecundarioCtrl.text.trim(),
-      logoUrl: _logoData.trim(),
+      logoUrl: '',
       direccion: _direccionCtrl.text.trim(),
       whatsapp: _whatsappCtrl.text.trim(),
       mostrarBotonMenu: _mostrarMenu,
@@ -203,6 +205,26 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            _Seccion(
+              titulo: 'Logo del negocio',
+              icono: Icons.image_rounded,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/logo_la_pena.jpg',
+                    height: 120,
+                    width: double.infinity,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('El logo es un recurso fijo de la aplicacion y se carga desde assets/images.'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const PublicGalleryEditor(),
+            const SizedBox(height: 16),
             // ── Encabezado descriptivo ────────────────────────────
             _InfoCard(
               icon: Icons.info_outline_rounded,
@@ -214,11 +236,12 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
             const SizedBox(height: 20),
 
             // ── Logo ───────────────────────────────────────────────
-            _Seccion(
-              titulo: 'Logo del negocio',
-              icono: Icons.image_rounded,
-              children: [
-                _LogoPreview(value: _logoData),
+            if (_showLegacyLogoEditor)
+              _Seccion(
+                titulo: 'Logo del negocio',
+                icono: Icons.image_rounded,
+                children: [
+                  _LogoPreview(value: _logoData),
                 const SizedBox(height: 12),
                 Row(
                   children: [

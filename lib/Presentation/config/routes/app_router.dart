@@ -60,7 +60,7 @@ class AppRouter {
   static const String sincronizacion = '/sincronizacion';
   static const String restaurantePublico = '/restaurante';
   static const String restauranteConfig = '/restaurante-config';
-  static const String driveBackup = '/drive-backup';
+  static const String backup = '/backup';
 
   /// Ruta pública de cotización (sin auth): /c/:id
   static const String cotizacionPublica = '/c';
@@ -122,7 +122,7 @@ class AppRouter {
       sincronizacion: (r) => r.puedeSincronizar,
       restauranteConfig: (r) => r.esAdmin,
       empresaConfig: (r) => r.esAdmin,
-      driveBackup: (r) => r.esAdmin,
+      backup: (r) => r.esAdmin,
     };
 
     return accessByRoute.entries.any(
@@ -328,7 +328,7 @@ class AppRouter {
                 const NoTransitionPage(child: EmpresaConfigPage()),
           ),
           GoRoute(
-            path: driveBackup,
+            path: backup,
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: BackupPage()),
           ),

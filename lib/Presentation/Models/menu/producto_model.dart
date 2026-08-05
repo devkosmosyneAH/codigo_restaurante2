@@ -15,8 +15,11 @@ class ProductoModel extends Producto {
     super.descripcion,
     required super.precio,
     super.imagenUrl,
-    super.driveFileId,
-    super.drivePublicUrl,
+    super.cloudinaryPublicId,
+    super.imagenWidth,
+    super.imagenHeight,
+    super.imagenBytes,
+    super.imagenVersion,
     super.imagenLocalCachePath,
     super.disponible,
     super.activo,
@@ -37,15 +40,31 @@ class ProductoModel extends Producto {
       descripcion: map['descripcion'] as String?,
       precio: (map['precio'] as num).toDouble(),
       imagenUrl: map['imagen_url'] as String?,
-      driveFileId: map['drive_file_id'] as String?,
-      drivePublicUrl: map['drive_public_url'] as String?,
+      cloudinaryPublicId: map['cloudinary_public_id'] as String?,
+      imagenWidth: (map['imagen_width'] as num?)?.toInt(),
+      imagenHeight: (map['imagen_height'] as num?)?.toInt(),
+      imagenBytes: (map['imagen_bytes'] as num?)?.toInt(),
+      imagenVersion: (map['imagen_version'] as num?)?.toInt(),
       imagenLocalCachePath: map['imagen_local_cache_path'] as String?,
-      disponible: (map['disponible'] as int?) == 1,
-      activo: (map['activo'] as int?) == 1,
+      // Los productos existentes antes de agregar estos campos deben seguir
+      // visibles. Solo dejan de mostrarse cuando el administrador los marca
+      // explícitamente como no disponibles o inactivos.
+      disponible: _readBool(map['disponible'], defaultValue: true),
+      activo: _readBool(map['activo'], defaultValue: true),
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       variantes: variantes ?? const [],
     );
+  }
+
+  static bool _readBool(dynamic value, {required bool defaultValue}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value.toString().trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+    return defaultValue;
   }
 
   Map<String, dynamic> toMap() {
@@ -57,8 +76,11 @@ class ProductoModel extends Producto {
       'descripcion': descripcion,
       'precio': precio,
       'imagen_url': imagenUrl,
-      'drive_file_id': driveFileId,
-      'drive_public_url': drivePublicUrl,
+      'cloudinary_public_id': cloudinaryPublicId,
+      'imagen_width': imagenWidth,
+      'imagen_height': imagenHeight,
+      'imagen_bytes': imagenBytes,
+      'imagen_version': imagenVersion,
       'imagen_local_cache_path': imagenLocalCachePath,
       'disponible': disponible ? 1 : 0,
       'activo': activo ? 1 : 0,
@@ -81,8 +103,11 @@ class ProductoModel extends Producto {
       descripcion: entity.descripcion,
       precio: entity.precio,
       imagenUrl: entity.imagenUrl,
-      driveFileId: entity.driveFileId,
-      drivePublicUrl: entity.drivePublicUrl,
+      cloudinaryPublicId: entity.cloudinaryPublicId,
+      imagenWidth: entity.imagenWidth,
+      imagenHeight: entity.imagenHeight,
+      imagenBytes: entity.imagenBytes,
+      imagenVersion: entity.imagenVersion,
       imagenLocalCachePath: entity.imagenLocalCachePath,
       disponible: entity.disponible,
       activo: entity.activo,

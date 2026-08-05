@@ -5,6 +5,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_cloud_service.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_manager.dart';
+import 'package:restaurant_app/Presentation/core/sync/sync_record.dart'
+    show SyncOperation;
 import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 
 /// Orquestador de sincronizacion hibrida (SQLite local + Realtime Database).
@@ -52,6 +54,7 @@ class HybridSyncOrchestrator {
     'ventas',
     'usuarios',
     'public_config',
+    'public_gallery_images',
   ];
 
   final SyncManager _syncManager;
@@ -76,9 +79,20 @@ class HybridSyncOrchestrator {
 
   /// Fuerza un ciclo de sincronizacion en este momento.
   ///
-  /// Si la orquestacion aun no esta iniciada o no hay conectividad,
-  /// el metodo retorna sin lanzar error.
+  /// Si la orquestación aún no está iniciada, la inicia para que una acción
+  /// explícita del administrador no se quede únicamente en SQLite.
   Future<void> syncNow({String reason = 'manual'}) async {
+    // Una escritura explícita desde el administrador debe poder recuperar
+    // una sesión cuyo sincronizador no alcanzó a iniciarse durante el arranque.
+    if (!_started) {
+      await start();
+    }
+    if (!_started) return;
+
+    // Connectivity puede reportar `none` temporalmente al iniciar la web o
+    // el escritorio. Para una acción explícita intentamos la escritura y
+    // dejamos que HTTP determine si realmente hay conexión.
+    if (!_online) _online = true;
     await _runCycle(reason: reason);
   }
 
@@ -149,6 +163,7 @@ class HybridSyncOrchestrator {
       final tenantId = _tenantContext.restaurantId.trim();
       final shouldPullRemote = reason != 'local-change';
       if (tenantId.isNotEmpty && shouldPullRemote) {
+        await _queueLocalMenuIfCloudIsEmpty(tenantId: tenantId);
         await _pullRemoteChanges(tenantId: tenantId);
         await _purgeExpiredTombstones(tenantId: tenantId);
       }
@@ -167,6 +182,49 @@ class HybridSyncOrchestrator {
       // Si la nube falla (auth/config/transitorio), mantenemos modo local.
     } finally {
       _syncInProgress = false;
+    }
+  }
+
+  /// Migra el menú que ya existe en SQLite cuando la colección remota todavía
+  /// no tiene productos. Esto cubre instalaciones anteriores a Firebase
+  /// como fuente de verdad y evita exigir que el administrador edite cada
+  /// producto manualmente.
+  Future<void> _queueLocalMenuIfCloudIsEmpty({
+    required String tenantId,
+  }) async {
+    final remoteProducts = await _cloudService.listCollection(
+      restaurantId: tenantId,
+      collection: 'productos',
+    );
+    if (remoteProducts.isNotEmpty) return;
+
+    for (final table in const ['categorias', 'productos', 'variantes']) {
+      final rows = table == 'variantes'
+          ? await _dbHelper.rawQuery(
+              '''
+              SELECT v.*
+              FROM variantes v
+              INNER JOIN productos p ON p.id = v.producto_id
+              WHERE p.restaurant_id = ?
+              ''',
+              [tenantId],
+            )
+          : await _dbHelper.query(
+              table,
+              where: 'restaurant_id = ?',
+              whereArgs: [tenantId],
+            );
+      for (final row in rows) {
+        final recordId = row['id']?.toString().trim();
+        if (recordId == null || recordId.isEmpty) continue;
+        await _syncManager.registrarOperacion(
+          tabla: table,
+          registroId: recordId,
+          operacion: SyncOperation.insert,
+          restaurantId: tenantId,
+          datos: Map<String, dynamic>.from(row),
+        );
+      }
     }
   }
 

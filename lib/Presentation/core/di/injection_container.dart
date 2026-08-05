@@ -13,7 +13,6 @@ import 'package:restaurant_app/Presentation/data/clientes/cliente_repository_imp
 import 'package:restaurant_app/Presentation/data/cotizaciones/cotizacion_local_datasource.dart';
 import 'package:restaurant_app/Presentation/data/cotizaciones/cotizacion_local_datasource_impl.dart';
 import 'package:restaurant_app/Presentation/data/cotizaciones/cotizacion_repository_impl.dart';
-import 'package:restaurant_app/Presentation/data/menu/drive_connection_local_datasource.dart';
 import 'package:restaurant_app/Presentation/data/menu/llamado_local_datasource_impl.dart';
 import 'package:restaurant_app/Presentation/data/menu/menu_local_datasource.dart';
 import 'package:restaurant_app/Presentation/data/menu/menu_local_datasource_impl.dart';
@@ -25,6 +24,8 @@ import 'package:restaurant_app/Presentation/data/mesas/mesa_local_datasource_imp
 import 'package:restaurant_app/Presentation/data/mesas/mesa_repository_impl.dart';
 import 'package:restaurant_app/Presentation/data/pagina_publica/public_config_datasource.dart';
 import 'package:restaurant_app/Presentation/data/pagina_publica/public_config_datasource_impl.dart';
+import 'package:restaurant_app/Presentation/data/pagina_publica/public_gallery_datasource.dart';
+import 'package:restaurant_app/Presentation/data/pagina_publica/public_gallery_datasource_impl.dart';
 import 'package:restaurant_app/Presentation/data/pagina_publica/public_config_repository_impl.dart';
 import 'package:restaurant_app/Presentation/data/pedidos/pedido_local_datasource.dart';
 import 'package:restaurant_app/Presentation/data/pedidos/pedido_local_datasource_impl.dart';
@@ -64,13 +65,9 @@ import 'package:restaurant_app/Presentation/providers/auth/activation_provider.d
 import 'package:restaurant_app/Presentation/providers/auth/auth_provider.dart';
 import 'package:restaurant_app/Presentation/services/clientes/cliente_service.dart';
 import 'package:restaurant_app/Presentation/services/clientes/cliente_service_impl.dart';
-import 'package:restaurant_app/Presentation/services/drive_auth_coordinator.dart';
-import 'package:restaurant_app/Presentation/services/drive_backup_service.dart';
 import 'package:restaurant_app/Presentation/services/facturacion/sri_service.dart';
 import 'package:restaurant_app/Presentation/services/firebase_auth_service.dart';
-import 'package:restaurant_app/Presentation/services/menu/drive_image_sync_queue_service.dart';
-import 'package:restaurant_app/Presentation/services/menu/drive_menu_connection_service_web.dart';
-import 'package:restaurant_app/Presentation/services/menu/menu_sync_diagnostics_service.dart';
+import 'package:restaurant_app/Presentation/services/cloudinary_upload_service.dart';
 
 /// Service Locator global.
 ///
@@ -97,11 +94,6 @@ Future<void> initDependencies() async {
       cloudService: sl(),
       dbHelper: sl(),
       tenantContext: sl(),
-      beforePushHook: () async {
-        if (sl.isRegistered<DriveImageSyncQueueService>()) {
-          await sl<DriveImageSyncQueueService>().processPendingOperations();
-        }
-      },
     ),
   );
   sl.registerLazySingleton<ActivationChangeNotifier>(
@@ -111,19 +103,11 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SriService>(() => SriServiceImpl());
 
   // ── Autenticación centralizada ───────────────────────────────────
-  // IMPORTANTE: DriveAuthCoordinator centraliza el acceso a Drive y al
-  // token de Google, mientras que GoogleAuthService queda como implementación
-  // interna delegada desde el coordinador.
-  // Registramos los servicios de forma perezosa (lazy) para evitar la
-  // inicialización temprana de GoogleSignIn en la web.
-  sl.registerLazySingleton<DriveAuthCoordinator>(
-    () => DriveAuthCoordinator.instance,
-  );
   sl.registerLazySingleton<FirebaseAuthService>(
     () => FirebaseAuthService.instance,
   );
-  sl.registerLazySingleton<DriveBackupService>(
-    () => DriveBackupService.instance,
+  sl.registerLazySingleton<CloudinaryUploadService>(
+    () => const CloudinaryUploadService(),
   );
 
   // ── Features ─────────────────────────────────────────────────────
@@ -139,7 +123,6 @@ Future<void> initDependencies() async {
   _initClientes();
 
   // No iniciar la base de datos local automáticamente.
-  // Las operaciones de Firebase/Drive se usan sin conexión local SQL.
 }
 
 /// Registra las dependencias del módulo de Mesas.
@@ -212,26 +195,6 @@ void _initPedidos() {
 
 /// Registra las dependencias del módulo de Menú.
 void _initMenu() {
-  sl.registerLazySingleton<MenuSyncDiagnosticsService>(
-    () => MenuSyncDiagnosticsService(),
-  );
-  sl.registerLazySingleton<DriveConnectionLocalDatasource>(
-    () => DriveConnectionLocalDatasource(dbHelper: sl()),
-  );
-  sl.registerLazySingleton<DriveMenuConnectionService>(
-    () =>
-        DriveMenuConnectionService(datasource: sl(), diagnosticsService: sl()),
-  );
-  sl.registerLazySingleton<DriveImageSyncQueueService>(
-    () => DriveImageSyncQueueService(
-      syncManager: sl(),
-      driveService: sl(),
-      dbHelper: sl(),
-      tenantContext: sl(),
-      diagnosticsService: sl(),
-    ),
-  );
-
   // DataSources
   sl.registerLazySingleton<MenuLocalDataSource>(
     () => MenuLocalDataSourceImpl(
@@ -396,6 +359,9 @@ void _initClientes() {
 
 /// Registra las dependencias del módulo de Página Pública.
 void _initPaginaPublica() {
+  sl.registerLazySingleton<PublicGalleryDatasource>(
+    () => PublicGalleryDatasourceImpl(dbHelper: sl(), syncManager: sl()),
+  );
   sl.registerLazySingleton<PublicConfigDatasource>(
     () => PublicConfigDatasourceImpl(
       dbHelper: sl(),

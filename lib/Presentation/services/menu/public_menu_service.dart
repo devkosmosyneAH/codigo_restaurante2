@@ -110,6 +110,7 @@ class PublicMenuService {
   List<Categoria> _parseCategorias(dynamic raw) {
     final output = <Categoria>[];
     for (final map in _maps(raw)) {
+      if (_isDeleted(map)) continue;
       if (!_isActive(map)) continue;
       final normalized = _normalize(
         map,
@@ -117,6 +118,7 @@ class PublicMenuService {
           'id': map['id'] ?? '',
           'restaurant_id': map['restaurant_id'] ?? '',
           'nombre': map['nombre'] ?? 'Sin nombre',
+          'activo': 1,
         },
       );
       try {
@@ -136,6 +138,7 @@ class PublicMenuService {
   Map<String, List<Variante>> _parseVariantes(dynamic raw) {
     final output = <String, List<Variante>>{};
     for (final map in _maps(raw)) {
+      if (_isDeleted(map)) continue;
       if (!_isActive(map)) continue;
       final normalized = _normalize(
         map,
@@ -144,6 +147,7 @@ class PublicMenuService {
           'producto_id': map['producto_id'] ?? '',
           'nombre': map['nombre'] ?? '',
           'precio': map['precio'] ?? 0,
+          'activo': 1,
         },
       );
       try {
@@ -165,6 +169,7 @@ class PublicMenuService {
   ) {
     final output = <Producto>[];
     for (final map in _maps(raw)) {
+      if (_isDeleted(map)) continue;
       if (!_isActive(map) || !_isAvailable(map)) continue;
       final normalized = _normalize(
         map,
@@ -174,6 +179,8 @@ class PublicMenuService {
           'categoria_id': map['categoria_id'] ?? '',
           'nombre': map['nombre'] ?? 'Sin nombre',
           'precio': map['precio'] ?? 0,
+          'activo': 1,
+          'disponible': 1,
         },
       );
       try {
@@ -208,6 +215,11 @@ class PublicMenuService {
     if (value is bool) return value;
     if (value is num) return value != 0;
     return value.toString().toLowerCase() != 'false' && value.toString() != '0';
+  }
+
+  bool _isDeleted(Map<String, dynamic> map) {
+    final value = map['deleted_at'];
+    return value != null && value.toString().trim().isNotEmpty;
   }
 
   bool _isAvailable(Map<String, dynamic> map) {

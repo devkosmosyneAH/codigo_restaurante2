@@ -1856,13 +1856,13 @@ class _TabRespaldosState extends State<_TabRespaldos> {
           const SizedBox(height: 8),
           const Text(
             'Accede a la gestión completa de respaldos locales\n'
-            'y Google Drive desde la sección dedicada.',
+            'desde la sección dedicada.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF6B6561), height: 1.5),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: () => context.go(AppRouter.driveBackup),
+            onPressed: () => context.go(AppRouter.backup),
             icon: const Icon(Icons.open_in_new_rounded),
             label: const Text('Abrir Respaldos'),
             style: FilledButton.styleFrom(

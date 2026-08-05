@@ -13,8 +13,11 @@ class Producto extends Equatable {
   final String? descripcion;
   final double precio;
   final String? imagenUrl;
-  final String? driveFileId;
-  final String? drivePublicUrl;
+  final String? cloudinaryPublicId;
+  final int? imagenWidth;
+  final int? imagenHeight;
+  final int? imagenBytes;
+  final int? imagenVersion;
   final String? imagenLocalCachePath;
   final bool disponible;
   final bool activo;
@@ -32,8 +35,11 @@ class Producto extends Equatable {
     this.descripcion,
     required this.precio,
     this.imagenUrl,
-    this.driveFileId,
-    this.drivePublicUrl,
+    this.cloudinaryPublicId,
+    this.imagenWidth,
+    this.imagenHeight,
+    this.imagenBytes,
+    this.imagenVersion,
     this.imagenLocalCachePath,
     this.disponible = true,
     this.activo = true,
@@ -76,8 +82,11 @@ class Producto extends Equatable {
     String? descripcion,
     double? precio,
     String? imagenUrl,
-    String? driveFileId,
-    String? drivePublicUrl,
+    String? cloudinaryPublicId,
+    int? imagenWidth,
+    int? imagenHeight,
+    int? imagenBytes,
+    int? imagenVersion,
     String? imagenLocalCachePath,
     bool? disponible,
     bool? activo,
@@ -93,8 +102,11 @@ class Producto extends Equatable {
       descripcion: descripcion ?? this.descripcion,
       precio: precio ?? this.precio,
       imagenUrl: imagenUrl ?? this.imagenUrl,
-      driveFileId: driveFileId ?? this.driveFileId,
-      drivePublicUrl: drivePublicUrl ?? this.drivePublicUrl,
+      cloudinaryPublicId: cloudinaryPublicId ?? this.cloudinaryPublicId,
+      imagenWidth: imagenWidth ?? this.imagenWidth,
+      imagenHeight: imagenHeight ?? this.imagenHeight,
+      imagenBytes: imagenBytes ?? this.imagenBytes,
+      imagenVersion: imagenVersion ?? this.imagenVersion,
       imagenLocalCachePath: imagenLocalCachePath ?? this.imagenLocalCachePath,
       disponible: disponible ?? this.disponible,
       activo: activo ?? this.activo,
@@ -113,8 +125,11 @@ class Producto extends Equatable {
     descripcion,
     precio,
     imagenUrl,
-    driveFileId,
-    drivePublicUrl,
+    cloudinaryPublicId,
+    imagenWidth,
+    imagenHeight,
+    imagenBytes,
+    imagenVersion,
     imagenLocalCachePath,
     disponible,
     activo,

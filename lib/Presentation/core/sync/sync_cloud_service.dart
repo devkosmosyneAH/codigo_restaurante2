@@ -47,6 +47,10 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
     'Content-Type': 'application/json',
   };
   static const Set<String> _localOnlyKeys = {
+    // Columnas heredadas de la migración anterior; nunca deben llegar a
+    // Realtime Database después del retiro de Google Drive.
+    'drive_file_id',
+    'drive_public_url',
     'imagen_local_cache_path',
     'image_base64',
     'image_temp_path',
@@ -243,23 +247,14 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
       output[key] = sanitized;
     }
 
-    final driveUrl = output['drive_public_url'];
-    if (driveUrl is String && !_isValidRemoteImageUrl(driveUrl)) {
-      output.remove('drive_public_url');
-    }
-
     final imageUrl = output['imagen_url'];
     if (imageUrl is String && !_isValidRemoteImageUrl(imageUrl)) {
-      if (driveUrl is String && _isValidRemoteImageUrl(driveUrl)) {
-        output['imagen_url'] = driveUrl;
-      } else {
-        output.remove('imagen_url');
-      }
+      output.remove('imagen_url');
     }
 
-    final driveFileId = output['drive_file_id'];
-    if (driveFileId is String && !_isValidDriveFileId(driveFileId)) {
-      output.remove('drive_file_id');
+    final cloudinaryId = output['cloudinary_public_id'];
+    if (cloudinaryId is String && cloudinaryId.trim().isEmpty) {
+      output.remove('cloudinary_public_id');
     }
     return output;
   }
@@ -296,19 +291,18 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
       final trimmed = value.trim();
       if (trimmed.isEmpty) return value;
 
-      if (key == 'imagen_url' || key == 'drive_public_url') {
+      if (key == 'imagen_url') {
         return _isValidRemoteImageUrl(trimmed) ? trimmed : _dropValue;
       }
 
-      if (key == 'drive_file_id') {
-        return _isValidDriveFileId(trimmed) ? trimmed : _dropValue;
+      if (key == 'cloudinary_public_id') {
+        return trimmed.isNotEmpty ? trimmed : _dropValue;
       }
 
       final lowerKey = key.toLowerCase();
       final isImageField =
           lowerKey.contains('imagen') ||
-          lowerKey.contains('image') ||
-          lowerKey.contains('drive');
+          lowerKey.contains('image');
 
       if (isImageField && _isForbiddenBinaryValue(trimmed)) {
         return _dropValue;
@@ -356,18 +350,6 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
     }
 
     return true;
-  }
-
-  bool _isValidDriveFileId(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return false;
-    if (trimmed.startsWith('http://') ||
-        trimmed.startsWith('https://') ||
-        _isForbiddenBinaryValue(trimmed)) {
-      return false;
-    }
-
-    return RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(trimmed);
   }
 
   void _ensureSuccess(

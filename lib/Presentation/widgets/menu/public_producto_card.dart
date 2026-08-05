@@ -41,12 +41,7 @@ class _PublicProductoCardState extends State<PublicProductoCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final tieneVariantes = widget.producto.tieneVariantes;
-    final primaryImageValue =
-        (widget.producto.imagenUrl?.trim().isNotEmpty ?? false)
-        ? widget.producto.imagenUrl
-        : (widget.producto.driveFileId?.trim().isNotEmpty ?? false)
-        ? 'drive:${widget.producto.driveFileId!.trim()}'
-        : widget.producto.drivePublicUrl;
+    final primaryImageValue = widget.producto.imagenUrl;
     final showQtyControls = widget.cantidad > 0;
     final precio = widget.producto.precioReferencial;
     final animationsDisabled = MediaQuery.disableAnimationsOf(context);
@@ -103,7 +98,7 @@ class _PublicProductoCardState extends State<PublicProductoCard> {
                       child: MenuImageLoader(
                         localCachePath: widget.producto.imagenLocalCachePath,
                         primaryImageValue: primaryImageValue,
-                        fallbackImageValue: widget.producto.drivePublicUrl,
+                        fallbackImageValue: null,
                         fit: BoxFit.cover,
                         cacheWidth: 720,
                         filterQuality: FilterQuality.low,

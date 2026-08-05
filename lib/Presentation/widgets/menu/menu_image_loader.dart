@@ -4,95 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:restaurant_app/Presentation/core/utils/local_image_provider_stub.dart';
 
-List<String> buildDriveImageCandidates(String? value) {
+List<String> buildImageCandidates(String? value) {
   final normalized = value?.trim() ?? '';
   if (normalized.isEmpty) return const [];
-
-  final candidates = <String>{};
-
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
-    final fixedUrl = normalizeDriveImageUrl(normalized);
-    candidates.add(fixedUrl);
-
-    final uri = Uri.tryParse(fixedUrl);
-    if (uri != null && uri.host.toLowerCase().contains('drive.google.com')) {
-      final fileId = _extractDriveFileIdFromUri(uri);
-      if (fileId != null) {
-        candidates.add('https://drive.google.com/uc?export=view&id=$fileId');
-        candidates.add(
-          'https://drive.google.com/thumbnail?id=$fileId&sz=w1000',
-        );
-      }
-    }
-    return candidates.toList(growable: false);
+    return <String>[normalized];
   }
-
-  final fileId = _extractDriveFileId(normalized);
-  if (fileId == null) return const [];
-
-  candidates.add('https://drive.google.com/uc?export=view&id=$fileId');
-  candidates.add('https://drive.google.com/thumbnail?id=$fileId&sz=w1000');
-  return candidates.toList(growable: false);
-}
-
-String normalizeDriveImageUrl(String url) {
-  final trimmed = url.trim();
-  if (trimmed.isEmpty) return trimmed;
-
-  final lower = trimmed.toLowerCase();
-  if (lower.contains('lh3.googleusercontent.com/d/')) {
-    return trimmed;
-  }
-
-  if (lower.contains('drive.google.com/file/d/') ||
-      lower.contains('drive.google.com/open?id=') ||
-      lower.contains('drive.google.com/uc?')) {
-    final uri = Uri.tryParse(trimmed);
-    if (uri != null) {
-      final fileId = _extractDriveFileIdFromUri(uri);
-      if (fileId != null) {
-        final publicUrl = 'https://drive.google.com/uc?export=view&id=$fileId';
-        return publicUrl;
-      }
-    }
-  }
-
-  final regExp = RegExp(r'(?:id=|/d/|/files/)([a-zA-Z0-9_-]+)');
-  final match = regExp.firstMatch(trimmed);
-
-  if (match != null && match.groupCount > 0) {
-    final fileId = match.group(1)!;
-    return 'https://drive.google.com/uc?export=view&id=$fileId';
-  }
-
-  return trimmed;
-}
-
-String? _extractDriveFileId(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) return null;
-
-  if (RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(trimmed)) {
-    return trimmed;
-  }
-
-  final uri = Uri.tryParse(trimmed);
-  if (uri != null) {
-    return _extractDriveFileIdFromUri(uri);
-  }
-
-  final regex = RegExp(r'(?:id=|/d/|/files/)([a-zA-Z0-9_-]+)');
-  final match = regex.firstMatch(trimmed);
-  return match?.group(1);
-}
-
-String? _extractDriveFileIdFromUri(Uri uri) {
-  final queryId = uri.queryParameters['id'];
-  if (queryId != null && queryId.isNotEmpty) return queryId;
-
-  final match = RegExp(r'/d/([a-zA-Z0-9_-]+)').firstMatch(uri.path);
-  if (match != null) return match.group(1);
-  return null;
+  if (normalized.startsWith('assets/')) return <String>[normalized];
+  return const <String>[];
 }
 
 class MenuImageLoader extends StatefulWidget {
@@ -211,10 +130,10 @@ class _MenuImageLoaderState extends State<MenuImageLoader> {
     }
 
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      final candidateUrls = buildDriveImageCandidates(raw);
+      final candidateUrls = buildImageCandidates(raw);
       final urls = candidateUrls.isNotEmpty ? candidateUrls : [raw];
       for (final candidateUrl in urls) {
-        final fixedUrl = normalizeDriveImageUrl(candidateUrl);
+        final fixedUrl = candidateUrl;
         if (kIsWeb) {
           candidates.add(
             _ImageCandidate(
@@ -227,29 +146,6 @@ class _MenuImageLoaderState extends State<MenuImageLoader> {
             _ImageCandidate(
               key: '$prefix:net:$fixedUrl',
               provider: _resized(NetworkImage(fixedUrl)),
-            ),
-          );
-        }
-      }
-      return;
-    }
-
-    if (raw.startsWith('drive:')) {
-      final fileId = raw.substring('drive:'.length).trim();
-      final driveCandidates = buildDriveImageCandidates(fileId);
-      for (final candidateUrl in driveCandidates) {
-        if (kIsWeb) {
-          candidates.add(
-            _ImageCandidate(
-              key: '$prefix:web-net:$candidateUrl',
-              networkUrl: candidateUrl,
-            ),
-          );
-        } else {
-          candidates.add(
-            _ImageCandidate(
-              key: '$prefix:net:$candidateUrl',
-              provider: _resized(NetworkImage(candidateUrl)),
             ),
           );
         }
@@ -401,9 +297,7 @@ class _WebIndexedCachedNetworkImageState
   }
 
   bool _needsHtmlImageElement(String url) {
-    final host = Uri.tryParse(url)?.host.toLowerCase() ?? '';
-    return host.contains('drive.google.com') ||
-        host.contains('googleusercontent.com');
+    return false;
   }
 
   @override

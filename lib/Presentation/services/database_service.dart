@@ -24,7 +24,7 @@ class DatabaseService {
   static void _assertEnabled() {
     if (!enabled) {
       throw StateError(
-        'El servicio de base de datos local SQLite está deshabilitado. Usa Firebase/Drive en su lugar.',
+        'El servicio de base de datos local SQLite está deshabilitado. Usa Firebase en su lugar.',
       );
     }
   }

@@ -60,10 +60,14 @@ class ActivationService {
   static const String _modeKey = 'activation_mode';
   static const String _activatedAtKey = 'activation_activated_at';
   static const String _expiresAtKey = 'activation_expires_at';
-  static const String _lastCodeKey = 'activation_last_code';
+  static const String _failedAttemptsKey = 'activation_failed_attempts';
+  static const String _lockUntilKey = 'activation_lock_until';
+  static const String _legacyLastCodeKey = 'activation_last_code';
 
   Future<ActivationStatus> getStatus({DateTime? now}) async {
     final prefs = await SharedPreferences.getInstance();
+    // Elimina códigos almacenados por versiones antiguas.
+    await prefs.remove(_legacyLastCodeKey);
     final evaluatedAt = now ?? DateTime.now();
     final rawMode = prefs.getString(_modeKey);
 
@@ -86,6 +90,12 @@ class ActivationService {
     final current = now ?? DateTime.now();
     final prefs = await SharedPreferences.getInstance();
 
+    final lockRaw = prefs.getString(_lockUntilKey);
+    final lockUntil = lockRaw == null ? null : DateTime.tryParse(lockRaw);
+    if (lockUntil != null && lockUntil.isAfter(current)) {
+      return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+    }
+
     if (normalized == AppConstants.demoActivationCode.toUpperCase()) {
       await prefs.setString(_modeKey, 'demo');
       await prefs.setString(_activatedAtKey, current.toIso8601String());
@@ -93,7 +103,7 @@ class ActivationService {
         _expiresAtKey,
         current.add(AppConstants.demoActivationDuration).toIso8601String(),
       );
-      await prefs.setString(_lastCodeKey, normalized);
+      await _clearFailedAttempts(prefs);
       return null;
     }
 
@@ -101,11 +111,20 @@ class ActivationService {
       await prefs.setString(_modeKey, 'full');
       await prefs.setString(_activatedAtKey, current.toIso8601String());
       await prefs.remove(_expiresAtKey);
-      await prefs.setString(_lastCodeKey, normalized);
+      await _clearFailedAttempts(prefs);
       return null;
     }
 
-    return 'Código de activación inválido.';
+    final attempts = (prefs.getInt(_failedAttemptsKey) ?? 0) + 1;
+    await prefs.setInt(_failedAttemptsKey, attempts);
+    if (attempts >= 5) {
+      await prefs.setString(
+        _lockUntilKey,
+        current.add(const Duration(minutes: 5)).toIso8601String(),
+      );
+      return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+    }
+    return 'El código ingresado no es válido.';
   }
 
   Future<void> clearActivation() async {
@@ -113,7 +132,13 @@ class ActivationService {
     await prefs.remove(_modeKey);
     await prefs.remove(_activatedAtKey);
     await prefs.remove(_expiresAtKey);
-    await prefs.remove(_lastCodeKey);
+    await _clearFailedAttempts(prefs);
+  }
+
+  Future<void> _clearFailedAttempts(SharedPreferences prefs) async {
+    await prefs.remove(_failedAttemptsKey);
+    await prefs.remove(_lockUntilKey);
+    await prefs.remove(_legacyLastCodeKey);
   }
 
   DateTime? _parseDate(String? raw) {

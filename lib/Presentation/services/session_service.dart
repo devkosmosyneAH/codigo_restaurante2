@@ -88,6 +88,8 @@ class SessionService {
   static const String _isLoggedInKey = 'is_logged_in';
   static const String _failedPinAttemptsKey = 'failed_pin_attempts';
   static const String _pinLockUntilKey = 'pin_lock_until';
+  static const String _failedLoginAttemptsKey = 'failed_login_attempts';
+  static const String _loginLockUntilKey = 'login_lock_until';
 
   static const Uuid _uuid = Uuid();
 
@@ -287,6 +289,53 @@ class SessionService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_failedPinAttemptsKey);
       await prefs.remove(_pinLockUntilKey);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<DateTime?> getLoginLockUntil() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_loginLockUntilKey);
+      if (raw == null || raw.isEmpty) return null;
+      final value = DateTime.tryParse(raw);
+      if (value != null && value.isBefore(DateTime.now())) {
+        await clearLoginSecurityState();
+        return null;
+      }
+      return value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<int> registerFailedLoginAttempt({
+    int maxAttempts = 5,
+    Duration lockDuration = const Duration(minutes: 5),
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final attempts = (prefs.getInt(_failedLoginAttemptsKey) ?? 0) + 1;
+      await prefs.setInt(_failedLoginAttemptsKey, attempts);
+      if (attempts >= maxAttempts) {
+        await prefs.setString(
+          _loginLockUntilKey,
+          DateTime.now().add(lockDuration).toIso8601String(),
+        );
+      }
+      return attempts;
+    } catch (_) {
+      return maxAttempts;
+    }
+  }
+
+  static Future<bool> clearLoginSecurityState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_failedLoginAttemptsKey);
+      await prefs.remove(_loginLockUntilKey);
       return true;
     } catch (_) {
       return false;

@@ -241,12 +241,12 @@ class FirebaseAuthService {
 
   static String _mapAuthError(String code) {
     return switch (code) {
-      'invalid-email' => 'El correo electrónico no es válido.',
-      'user-disabled' => 'Esta cuenta está deshabilitada.',
-      'user-not-found' => 'No existe una cuenta con ese correo.',
-      'wrong-password' => 'La contraseña es incorrecta.',
-      'email-already-in-use' => 'Ya existe una cuenta con ese correo.',
-      'weak-password' => 'La contraseña debe tener al menos 6 caracteres.',
+      'invalid-email' => 'Las credenciales ingresadas no son válidas.',
+      'user-disabled' => 'No fue posible iniciar sesión con esas credenciales.',
+      'user-not-found' => 'Las credenciales ingresadas no son válidas.',
+      'wrong-password' => 'Las credenciales ingresadas no son válidas.',
+      'email-already-in-use' => 'No fue posible completar el registro.',
+      'weak-password' => 'La contraseña no cumple los requisitos de seguridad.',
       'operation-not-allowed' =>
         'El método de autenticación no está habilitado.',
       _ => 'No fue posible completar la solicitud de autenticación.',

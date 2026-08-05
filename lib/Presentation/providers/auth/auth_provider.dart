@@ -78,14 +78,32 @@ class AuthChangeNotifier extends ChangeNotifier {
       return sl<ActivationChangeNotifier>().status.message;
     }
 
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty ||
+        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(normalizedEmail)) {
+      return 'Ingresa un correo electrÃ³nico vÃ¡lido.';
+    }
+    if (password.length < 6) {
+      return 'Las credenciales ingresadas no son vÃ¡lidas.';
+    }
+
+    final loginLockUntil = await SessionService.getLoginLockUntil();
+    if (loginLockUntil != null && loginLockUntil.isAfter(DateTime.now())) {
+      return 'Demasiados intentos. Espera unos minutos e intÃ©ntalo de nuevo.';
+    }
+
     final authService = sl<FirebaseAuthService>();
     final error = await authService.signInWithEmailAndPassword(
-      email: email,
+      email: normalizedEmail,
       password: password,
     );
     if (error != null) {
-      await _audit('login_failed_firebase', detail: {'email': email});
-      return error;
+      final attempts = await SessionService.registerFailedLoginAttempt();
+      await _audit('login_failed');
+      if (attempts >= 5) {
+        return 'Demasiados intentos. Espera unos minutos e intÃ©ntalo de nuevo.';
+      }
+      return 'Las credenciales ingresadas no son vÃ¡lidas.';
     }
 
     final session = await authService.getCurrentAuthenticatedUser();
@@ -94,6 +112,7 @@ class AuthChangeNotifier extends ChangeNotifier {
       return 'No fue posible restaurar la sesión del usuario.';
     }
 
+    await SessionService.clearLoginSecurityState();
     await SessionService.clearPinSecurityState();
     final previousUser = _usuario;
     final usuario = Usuario(
@@ -131,9 +150,9 @@ class AuthChangeNotifier extends ChangeNotifier {
   /// Compatibilidad con el flujo anterior: utiliza Firebase Auth para validar el acceso.
   Future<String?> loginWithPin(String pin) async {
     if (pin.isEmpty) {
-      return 'Ingresa tus credenciales de Firebase.';
+      return 'Ingresa tus credenciales de acceso.';
     }
-    return 'El acceso por PIN fue reemplazado por Firebase Authentication. Usa el formulario de correo y contraseña.';
+    return 'El acceso por PIN ya no está disponible. Usa el formulario de correo y contraseña.';
   }
 
   /// Restaura una sesión previamente guardada si sigue siendo válida.

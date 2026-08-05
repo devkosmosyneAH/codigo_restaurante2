@@ -187,7 +187,7 @@ class _LoginPageState extends State<LoginPage>
                                 ),
                                 const SizedBox(height: 20),
                                 Text(
-                                  'Inicia sesión con Firebase',
+                                  'Ingresa tus credenciales para continuar',
                                   style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
                                         color: AppColors.textSecondary,
@@ -284,7 +284,7 @@ class _LoginPageState extends State<LoginPage>
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'Acceso seguro con Firebase Authentication: ingresa el correo y la contraseña asignados para administrar tu restaurante.',
+                                          'Acceso seguro: utiliza el correo y la contraseña asignados para administrar tu restaurante.',
                                           style: const TextStyle(
                                             fontSize: 13,
                                             height: 1.5,

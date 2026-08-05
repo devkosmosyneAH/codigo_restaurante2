@@ -70,9 +70,13 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
             colors: [_cream, Color(0xFFFFFBF7)],
           ),
         ),
-        child: CustomScrollView(
-          slivers: [
-            _HeroSliver(config: config),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 560),
+          curve: Curves.easeOutCubic,
+          child: CustomScrollView(
+            slivers: [
+              _HeroSliver(config: config),
             SliverToBoxAdapter(
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -110,11 +114,13 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
                             ),
                             child: Column(
                               children: [
-                                PublicGalleryView(
-                                  images: galleryState.images
-                                      .where((image) => image.activo && !image.isCover)
-                                      .take(12)
-                                      .toList(),
+                                _SoftReveal(
+                                  child: PublicGalleryView(
+                                    images: galleryState.images
+                                        .where((image) => image.activo && !image.isCover)
+                                        .take(12)
+                                        .toList(),
+                                  ),
                                 ),
                                 if (config.mostrarBotonMenu ||
                                     config.mostrarBotonReservas)
@@ -210,7 +216,18 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
                 },
               ),
             ),
-          ],
+            ],
+          ),
+          builder: (context, value, child) {
+            if (MediaQuery.disableAnimationsOf(context)) return child!;
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 10 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -2723,24 +2740,98 @@ class _Footer extends StatelessWidget {
               'Todos los derechos reservados',
               style: TextStyle(fontSize: 11, color: AppColors.textHint),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             Divider(color: Colors.grey.shade300, height: 1),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: () async {
-                final uri = Uri.parse(
-                  'https://devkosmosyneah.github.io/devkosmosyne-website/',
-                );
-                await _launchExternalUri(uri);
-              },
-              child: const Text(
-                'Desarrollado por DevCosmosyne',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textHint,
-                  letterSpacing: 0.3,
-                  decoration: TextDecoration.underline,
-                  decorationColor: AppColors.textHint,
+            const SizedBox(height: 16),
+            _InteractiveScale(
+              hoverScale: 1.015,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryDark.withValues(alpha: 0.06),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      const Text(
+                        'Sitio desarrollado por',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () async {
+                          final uri = Uri.parse(
+                            'https://devkosmosyneah.github.io/devkosmosyne-website/',
+                          );
+                          await _launchExternalUri(uri);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 3,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.code_rounded,
+                                size: 15,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'DevCosmosyne',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primaryDark,
+                                  fontWeight: FontWeight.w800,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: AppColors.primary,
+                                ),
+                              ),
+                              SizedBox(width: 3),
+                              Icon(
+                                Icons.open_in_new_rounded,
+                                size: 13,
+                                color: AppColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        ' · Diseño web y soluciones digitales',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textHint,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

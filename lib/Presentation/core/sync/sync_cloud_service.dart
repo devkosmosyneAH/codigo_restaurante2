@@ -699,6 +699,16 @@ class SyncCloudService {
     );
   }
 
+  /// Lee una coleccion publica sin exigir la comprobacion de salud de la raiz.
+  Future<Map<String, Map<String, dynamic>>> listPublicCollection({
+    required String restaurantId,
+    required String collection,
+  }) =>
+      _backend.listCollection(
+        restaurantId: restaurantId,
+        collection: collection,
+      );
+
   /// Removes an expired tombstone only after the retention window elapsed.
   Future<void> purgeDocument({
     required String restaurantId,

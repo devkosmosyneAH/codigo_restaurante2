@@ -2,6 +2,7 @@ import 'package:restaurant_app/Presentation/Models/pagina_publica/public_config_
 import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
 import 'package:restaurant_app/Presentation/core/errors/exceptions.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_manager.dart';
+import 'package:restaurant_app/Presentation/core/sync/sync_cloud_service.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_record.dart'
     show SyncOperation;
 import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
@@ -10,18 +11,37 @@ import 'package:restaurant_app/Presentation/data/pagina_publica/public_config_da
 class PublicConfigDatasourceImpl implements PublicConfigDatasource {
   final DatabaseHelper _db;
   final SyncManager _syncManager;
+  final SyncCloudService _cloudService;
 
   PublicConfigDatasourceImpl({
     required DatabaseHelper dbHelper,
     required SyncManager syncManager,
+    required SyncCloudService cloudService,
     required TenantContext tenantContext,
   }) : _db = dbHelper,
-       _syncManager = syncManager;
+       _syncManager = syncManager,
+       _cloudService = cloudService;
   static const _table = 'public_config';
 
   @override
   Future<PublicConfigModel?> getConfig(String restaurantId) async {
     try {
+      try {
+        final remote = await _cloudService.listPublicCollection(
+          restaurantId: restaurantId,
+          collection: _table,
+        );
+        final remoteConfig = remote[restaurantId];
+        if (remoteConfig != null && remoteConfig['deleted_at'] == null) {
+          return PublicConfigModel.fromMap({
+            ...remoteConfig,
+            'restaurant_id': remoteConfig['restaurant_id'] ?? restaurantId,
+          });
+        }
+      } catch (_) {
+        // Fallback local para modo offline.
+      }
+
       final rows = await _db.query(
         _table,
         where: 'restaurant_id = ?',

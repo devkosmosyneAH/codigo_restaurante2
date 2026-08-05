@@ -366,6 +366,7 @@ void _initPaginaPublica() {
     () => PublicConfigDatasourceImpl(
       dbHelper: sl(),
       syncManager: sl(),
+      cloudService: sl(),
       tenantContext: sl(),
     ),
   );

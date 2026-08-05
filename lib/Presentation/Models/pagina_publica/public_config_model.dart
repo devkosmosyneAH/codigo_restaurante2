@@ -78,11 +78,16 @@ class PublicConfigModel extends PublicConfig {
   factory PublicConfigModel.fromMap(Map<String, dynamic> map) {
     List<HorarioEntry> horarios = [];
     try {
-      final raw = map['horarios'] as String?;
-      if (raw != null && raw.isNotEmpty) {
-        final decoded = jsonDecode(raw) as List<dynamic>;
+      final raw = map['horarios'];
+      final decoded = raw is String
+          ? (raw.isEmpty ? const <dynamic>[] : jsonDecode(raw) as List<dynamic>)
+          : raw is List
+          ? raw
+          : const <dynamic>[];
+      if (decoded.isNotEmpty) {
         horarios = decoded
-            .map((e) => HorarioEntry.fromMap(e as Map<String, dynamic>))
+            .whereType<Map>()
+            .map((e) => HorarioEntry.fromMap(Map<String, dynamic>.from(e)))
             .toList();
       }
     } catch (_) {}
@@ -97,8 +102,8 @@ class PublicConfigModel extends PublicConfig {
       horarios: horarios,
       facebook: map['facebook'] as String? ?? '',
       instagram: map['instagram'] as String? ?? '',
-      mostrarBotonMenu: (map['mostrar_boton_menu'] as int? ?? 1) == 1,
-      mostrarBotonReservas: (map['mostrar_boton_reservas'] as int? ?? 1) == 1,
+      mostrarBotonMenu: _asBool(map['mostrar_boton_menu'], fallback: true),
+      mostrarBotonReservas: _asBool(map['mostrar_boton_reservas'], fallback: true),
       updatedAt:
           DateTime.tryParse(map['updated_at'] as String? ?? '') ??
           DateTime.now(),
@@ -133,10 +138,18 @@ class PublicConfigModel extends PublicConfig {
       emailContacto: map['email_contacto'] as String? ?? '',
       emailSecundario: map['email_secundario'] as String? ?? '',
       telefonoSecundario: map['telefono_secundario'] as String? ?? '',
-      cocinaModoAutomatico: (map['cocina_modo_automatico'] as int? ?? 0) == 1,
+      cocinaModoAutomatico: _asBool(map['cocina_modo_automatico']),
       cocinaTiempoAutoMinutos:
-          (map['cocina_tiempo_auto_minutos'] as int?) ?? 15,
+          (map['cocina_tiempo_auto_minutos'] as num?)?.toInt() ?? 15,
     );
+  }
+
+  static bool _asBool(dynamic value, {bool fallback = false}) {
+    if (value == null) return fallback;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value.toString().trim().toLowerCase();
+    return normalized == '1' || normalized == 'true' || normalized == 'yes';
   }
 
   Map<String, dynamic> toMap() => {

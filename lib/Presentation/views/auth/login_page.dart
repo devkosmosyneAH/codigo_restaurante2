@@ -284,7 +284,7 @@ class _LoginPageState extends State<LoginPage>
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'Seguridad activa: después de 3 intentos fallidos el acceso se bloquea temporalmente. Cambia los PIN iniciales desde Usuarios.',
+                                          'Acceso seguro con Firebase Authentication: ingresa el correo y la contraseña asignados para administrar tu restaurante.',
                                           style: const TextStyle(
                                             fontSize: 13,
                                             height: 1.5,

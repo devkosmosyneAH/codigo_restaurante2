@@ -84,255 +84,271 @@ class _LoginPageState extends State<LoginPage>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.background,
-              Colors.white,
-            ],
+            colors: [AppColors.background, Colors.white],
           ),
         ),
         child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              Expanded(
-                child: FadeTransition(
-                  opacity: _contentOpacity,
-                  child: ScaleTransition(
-                    scale: _contentScale,
-                    alignment: Alignment.topCenter,
-                    child: Center(
-                      child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.72),
-                                width: 6,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.24),
-                                  blurRadius: 28,
-                                  offset: const Offset(0, 14),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(28),
-                              child: Image.asset(
-                                'assets/images/logo_la_pena.jpg',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.restaurant_rounded,
-                                  size: 40,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(40),
-                              border: Border.all(
-                                color: AppColors.primary.withValues(alpha: 0.16),
-                              ),
-                            ),
-                            child: const Text(
-                              'PANEL DE OPERACIONES',
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            AppConstants.appName,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            AppConstants.appFullName,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                              letterSpacing: 0.12,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'Inicia sesión con Firebase',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(26),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                24,
-                                22,
-                                24,
-                                24,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Bienvenido de nuevo',
-                                    style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 21,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-                                  const Text(
-                                    'Accede a la administración de tu restaurante.',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  AuthEmailPasswordForm(
-                                    emailController: _emailController,
-                                    passwordController: _passwordController,
-                                    isLoading: _isLoading,
-                                    onSubmit: _submit,
-                                    errorText: _errorText,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              children: [
+                Expanded(
+                  child: FadeTransition(
+                    opacity: _contentOpacity,
+                    child: ScaleTransition(
+                      scale: _contentScale,
+                      alignment: Alignment.topCenter,
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
-                                  width: 36,
-                                  height: 36,
+                                  width: 110,
+                                  height: 110,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(
-                                      alpha: 0.12,
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.72,
+                                      ),
+                                      width: 6,
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.24,
+                                        ),
+                                        blurRadius: 28,
+                                        offset: const Offset(0, 14),
+                                      ),
+                                    ],
                                   ),
-                                  child: const Icon(
-                                    Icons.shield_rounded,
-                                    color: AppColors.primary,
-                                    size: 20,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(28),
+                                    child: Image.asset(
+                                      'assets/images/logo_la_pena.jpg',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.restaurant_rounded,
+                                        size: 40,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Seguridad activa: después de 3 intentos fallidos el acceso se bloquea temporalmente. Cambia los PIN iniciales desde Usuarios.',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      height: 1.5,
-                                      color: AppColors.textSecondary,
+                                const SizedBox(height: 18),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.08,
                                     ),
+                                    borderRadius: BorderRadius.circular(40),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.16,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'PANEL DE OPERACIONES',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  AppConstants.appName,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  AppConstants.appFullName,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
+                                    letterSpacing: 0.12,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Inicia sesión con Firebase',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                                const SizedBox(height: 24),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(26),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.06,
+                                        ),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      24,
+                                      22,
+                                      24,
+                                      24,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Bienvenido de nuevo',
+                                          style: TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 21,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Accede a la administración de tu restaurante.',
+                                          style: TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 13.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        AuthEmailPasswordForm(
+                                          emailController: _emailController,
+                                          passwordController:
+                                              _passwordController,
+                                          isLoading: _isLoading,
+                                          onSubmit: _submit,
+                                          errorText: _errorText,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.shield_rounded,
+                                          color: AppColors.primary,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Seguridad activa: después de 3 intentos fallidos el acceso se bloquea temporalmente. Cambia los PIN iniciales desde Usuarios.',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            height: 1.5,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              FadeTransition(
-                opacity: _footerOpacity,
-                child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                FadeTransition(
+                  opacity: _footerOpacity,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
                     ),
-                  ],
-                ),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 16,
-                  runSpacing: 10,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(
-                          Icons.chevron_left_rounded,
-                          color: AppColors.textSecondary,
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Desarrollado por DevKosmosyne',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
-                          ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                    FilledButton(
-                      onPressed: _showSupportDialog, /*
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 10,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(
+                              Icons.chevron_left_rounded,
+                              color: AppColors.textSecondary,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Desarrollado por DevKosmosyne',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        FilledButton(
+                          onPressed: _showSupportDialog,
+                          /*
                         final messenger = ScaffoldMessenger.of(context);
                         messenger.hideCurrentMaterialBanner();
 
@@ -496,23 +512,23 @@ class _LoginPageState extends State<LoginPage>
                         );
                       },
                       */
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.secondary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            minimumSize: const Size(100, 42),
+                          ),
+                          child: const Text('Soporte'),
                         ),
-                        minimumSize: const Size(100, 42),
-                      ),
-                      child: const Text('Soporte'),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -789,10 +805,7 @@ class _LoginPageState extends State<LoginPage>
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: Text(
-              actionLabel,
-              style: const TextStyle(fontSize: 11.5),
-            ),
+            child: Text(actionLabel, style: const TextStyle(fontSize: 11.5)),
           ),
         ],
       ),

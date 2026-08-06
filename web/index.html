@@ -64,6 +64,12 @@
   </style>
   <script>
     (function () {
+      var params = new URLSearchParams(window.location.search);
+      var redirect = params.get('redirect');
+      if (redirect) {
+        window.history.replaceState({}, '', redirect);
+      }
+
       var splash = document.getElementById('boot-splash');
       var observer = new MutationObserver(function () {
         if (document.querySelector('flt-glass-pane')) {

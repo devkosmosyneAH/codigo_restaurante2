@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>La Peña</title>
+  <script>
+    (function () {
+      // GitHub Pages sirve este documento para las rutas profundas. Conserva
+      // la ruta para que Flutter Router la procese al cargar index.html.
+      var target = window.location.pathname + window.location.search + window.location.hash;
+      var base = window.location.pathname.split('/').filter(Boolean)[0] || '';
+      var prefix = base ? '/' + base : '';
+      window.location.replace(prefix + '/?redirect=' + encodeURIComponent(target));
+    }());
+  </script>
+</head>
+<body></body>
+</html>

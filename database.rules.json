@@ -5,10 +5,10 @@
 
     "restaurantes": {
       "$restaurantId": {
-        ".read": "$restaurantId == 'la_pena_001'",
         ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
 
         "productos": {
+          ".read": "$restaurantId == 'la_pena_001'",
           "$productoId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
@@ -17,6 +17,7 @@
         },
 
         "categorias": {
+          ".read": "$restaurantId == 'la_pena_001'",
           "$categoriaId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
@@ -25,6 +26,7 @@
         },
 
         "variantes": {
+          ".read": "$restaurantId == 'la_pena_001'",
           "$varianteId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",
@@ -38,6 +40,7 @@
           ".validate": "newData.hasChildren()"
         },
         "public_gallery_images": {
+          ".read": "$restaurantId == 'la_pena_001'",
           "$imageId": {
             ".read": "$restaurantId == 'la_pena_001'",
             ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true",

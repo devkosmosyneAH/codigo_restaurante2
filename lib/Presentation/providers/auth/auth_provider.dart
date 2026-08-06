@@ -165,11 +165,25 @@ class AuthChangeNotifier extends ChangeNotifier {
 
     _setSessionRestoring(true);
     try {
-      var session = await SessionService.getCurrentUserSession();
-      if (session == null) {
-        session = await sl<FirebaseAuthService>().restoreSessionFromFirebase();
-        if (session == null) return;
+      // La sesión local solo es una ayuda de persistencia; no es una prueba
+      // de autenticación. En web puede ser modificada por el usuario, por lo
+      // que siempre se valida y reconstruye desde Firebase al restaurarla.
+      final persistedSession = await SessionService.getCurrentUserSession();
+      final firebaseSession = await sl<FirebaseAuthService>()
+          .restoreSessionFromFirebase();
+      if (firebaseSession == null) return;
+
+      final persistedUid =
+          persistedSession?['uid']?.toString() ??
+          persistedSession?['id']?.toString();
+      final firebaseUid =
+          firebaseSession['uid']?.toString() ??
+          firebaseSession['id']?.toString();
+      if (persistedSession != null &&
+          (persistedUid == null || persistedUid != firebaseUid)) {
+        await _audit('session_identity_mismatch');
       }
+      final session = firebaseSession;
 
       final usuario = _fromSessionMap(session);
       if (!usuario.activo) {

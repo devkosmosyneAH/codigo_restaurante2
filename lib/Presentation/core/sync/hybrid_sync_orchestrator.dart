@@ -37,7 +37,10 @@ class HybridSyncOrchestrator {
   static const Duration _pulseInterval = Duration(minutes: 5);
   static const Duration _localChangeDebounce = Duration(milliseconds: 700);
   static const Duration _tombstoneRetention = Duration(days: 30);
-  static const Duration _tombstonePurgeInterval = Duration(hours: 12);
+  // Purging requires downloading every synchronized collection. Tombstones
+  // already remain visible for 30 days, so doing this from every device twice
+  // a day wastes bandwidth without improving consistency.
+  static const Duration _tombstonePurgeInterval = Duration(days: 7);
   static const int _pushBatchSize = 100;
 
   static const List<String> _realtimeTables = [
@@ -66,6 +69,7 @@ class HybridSyncOrchestrator {
   final Future<void> Function()? _beforePushHook;
 
   final Map<String, Set<String>> _tableColumnsCache = {};
+  final Set<String> _menuBootstrapCheckedTenants = <String>{};
 
   Timer? _pulseTimer;
   Timer? _localChangeTimer;
@@ -197,39 +201,51 @@ class HybridSyncOrchestrator {
   /// como fuente de verdad y evita exigir que el administrador edite cada
   /// producto manualmente.
   Future<void> _queueLocalMenuIfCloudIsEmpty({required String tenantId}) async {
-    final remoteProducts = await _cloudService.listCollection(
-      restaurantId: tenantId,
-      collection: 'productos',
-    );
-    if (remoteProducts.isNotEmpty) return;
+    // This is a one-time migration guard, not a periodic health check. Once
+    // the remote menu is known to exist (or local rows have been queued),
+    // normal CRUD sync keeps it current. Repeating the full `productos` read
+    // on each pulse is especially expensive for the public catalog.
+    if (!_menuBootstrapCheckedTenants.add(tenantId)) return;
 
-    for (final table in const ['categorias', 'productos', 'variantes']) {
-      final rows = table == 'variantes'
-          ? await _dbHelper.rawQuery(
-              '''
-              SELECT v.*
-              FROM variantes v
-              INNER JOIN productos p ON p.id = v.producto_id
-              WHERE p.restaurant_id = ?
-              ''',
-              [tenantId],
-            )
-          : await _dbHelper.query(
-              table,
-              where: 'restaurant_id = ?',
-              whereArgs: [tenantId],
-            );
-      for (final row in rows) {
-        final recordId = row['id']?.toString().trim();
-        if (recordId == null || recordId.isEmpty) continue;
-        await _syncManager.registrarOperacion(
-          tabla: table,
-          registroId: recordId,
-          operacion: SyncOperation.insert,
-          restaurantId: tenantId,
-          datos: Map<String, dynamic>.from(row),
-        );
+    try {
+      final remoteProducts = await _cloudService.listCollection(
+        restaurantId: tenantId,
+        collection: 'productos',
+      );
+      if (remoteProducts.isNotEmpty) return;
+
+      for (final table in const ['categorias', 'productos', 'variantes']) {
+        final rows = table == 'variantes'
+            ? await _dbHelper.rawQuery(
+                '''
+                SELECT v.*
+                FROM variantes v
+                INNER JOIN productos p ON p.id = v.producto_id
+                WHERE p.restaurant_id = ?
+                ''',
+                [tenantId],
+              )
+            : await _dbHelper.query(
+                table,
+                where: 'restaurant_id = ?',
+                whereArgs: [tenantId],
+              );
+        for (final row in rows) {
+          final recordId = row['id']?.toString().trim();
+          if (recordId == null || recordId.isEmpty) continue;
+          await _syncManager.registrarOperacion(
+            tabla: table,
+            registroId: recordId,
+            operacion: SyncOperation.insert,
+            restaurantId: tenantId,
+            datos: Map<String, dynamic>.from(row),
+          );
+        }
       }
+    } catch (_) {
+      // Do not cache a failed availability check; a later pulse can retry it.
+      _menuBootstrapCheckedTenants.remove(tenantId);
+      rethrow;
     }
   }
 

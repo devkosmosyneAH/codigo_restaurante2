@@ -656,16 +656,24 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
 
 /// Servicio para enviar operaciones del sync_log a Realtime Database.
 class SyncCloudService {
-  SyncCloudService({SyncCloudBackend? backend, bool? enforcePlatformSupport})
-    : _backend =
-          backend ??
-          (kIsWeb
-              ? FirebaseSdkSyncCloudBackend()
-              : FirebaseRealtimeSyncCloudBackend()),
-      _enforcePlatformSupport = enforcePlatformSupport ?? backend == null;
+  SyncCloudService({
+    SyncCloudBackend? backend,
+    bool? enforcePlatformSupport,
+    DateTime Function()? now,
+  }) : _backend =
+           backend ??
+           (kIsWeb
+               ? FirebaseSdkSyncCloudBackend()
+               : FirebaseRealtimeSyncCloudBackend()),
+       _enforcePlatformSupport = enforcePlatformSupport ?? backend == null,
+       _now = now ?? DateTime.now;
 
   final SyncCloudBackend _backend;
   final bool _enforcePlatformSupport;
+  final DateTime Function() _now;
+  final Map<String, DateTime> _lastRemoteAuditAtByRestaurant = {};
+
+  static const Duration _remoteAuditInterval = Duration(minutes: 15);
 
   bool get isCloudSyncSupportedPlatform =>
       !_enforcePlatformSupport || AppEnvironment.isRealtimeDatabaseConfigured;
@@ -773,21 +781,40 @@ class SyncCloudService {
         );
     }
 
-    // Audit telemetry must never turn an acknowledged data write into a retry.
+    await _writeRemoteSyncStatusIfDue(record, restaurantId);
+  }
+
+  /// Keeps a small remote support signal without duplicating every business
+  /// write. Detailed per-operation history remains in SQLite's
+  /// `sync_audit_log`; Firebase stores only the latest confirmed sync per
+  /// restaurant, at most once every fifteen minutes.
+  Future<void> _writeRemoteSyncStatusIfDue(
+    SyncRecord record,
+    String restaurantId,
+  ) async {
+    final now = _now();
+    final lastAuditAt = _lastRemoteAuditAtByRestaurant[restaurantId];
+    if (lastAuditAt != null &&
+        now.difference(lastAuditAt) < _remoteAuditInterval) {
+      return;
+    }
+
     try {
       await _backend.writeAudit(
-        recordId: record.id,
+        recordId: '${restaurantId}_latest',
         data: {
+          'restaurant_id': restaurantId,
+          'status': 'success',
           'tabla': record.tabla,
           'registro_id': record.registroId,
-          'restaurant_id': restaurantId,
           'operacion': record.operacion.name,
-          'created_at_local': record.createdAt.toIso8601String(),
           'synced_at': _backend.serverTimestamp(),
         },
       );
+      _lastRemoteAuditAtByRestaurant[restaurantId] = now;
     } catch (_) {
-      // The operation itself has already been confirmed by Realtime Database.
+      // A diagnostic signal must never turn an acknowledged business write
+      // into a retry. Leave it eligible for the next successful sync.
     }
   }
 

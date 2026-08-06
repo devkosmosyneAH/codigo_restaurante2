@@ -24,12 +24,19 @@ class ActivationChangeNotifier extends ChangeNotifier {
     debugPrint(StackTrace.current.toString());
     notifyListeners();
 
-    _status = await _service.getStatus(now: now);
-    _hasLoaded = true;
-    _isLoading = false;
-    debugPrint("ACTIVATION notifyListeners() - loadStatus (isLoading=false)");
-    debugPrint(StackTrace.current.toString());
-    notifyListeners();
+    try {
+      _status = await _service.getStatus(now: now);
+    } catch (error, stack) {
+      debugPrint('ACTIVATION loadStatus failed: $error');
+      debugPrintStack(stackTrace: stack);
+      _status = ActivationStatus.empty(now: now);
+    } finally {
+      _hasLoaded = true;
+      _isLoading = false;
+      debugPrint("ACTIVATION notifyListeners() - loadStatus (isLoading=false)");
+      debugPrint(StackTrace.current.toString());
+      notifyListeners();
+    }
   }
 
   Future<String?> activate(String code, {DateTime? now}) async {
@@ -38,14 +45,21 @@ class ActivationChangeNotifier extends ChangeNotifier {
     debugPrint(StackTrace.current.toString());
     notifyListeners();
 
-    final error = await _service.activateWithCode(code, now: now);
-    _status = await _service.getStatus(now: now);
-    _hasLoaded = true;
-    _isLoading = false;
-    debugPrint("ACTIVATION notifyListeners() - activate (isLoading=false)");
-    debugPrint(StackTrace.current.toString());
-    notifyListeners();
-    return error;
+    try {
+      final error = await _service.activateWithCode(code, now: now);
+      _status = await _service.getStatus(now: now);
+      return error;
+    } catch (error, stack) {
+      debugPrint('ACTIVATION activate failed: $error');
+      debugPrintStack(stackTrace: stack);
+      return 'No se pudo verificar el código. Inténtalo otra vez.';
+    } finally {
+      _hasLoaded = true;
+      _isLoading = false;
+      debugPrint("ACTIVATION notifyListeners() - activate (isLoading=false)");
+      debugPrint(StackTrace.current.toString());
+      notifyListeners();
+    }
   }
 
   Future<void> reset() async {

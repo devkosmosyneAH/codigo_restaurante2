@@ -18,6 +18,7 @@ class ActivationPageState extends State<ActivationPage>
     with TickerProviderStateMixin {
   final _controller = TextEditingController();
   late final ActivationChangeNotifier _activation;
+  String? _inputError;
 
   // Animaciones
   late AnimationController _logoController;
@@ -34,6 +35,7 @@ class ActivationPageState extends State<ActivationPage>
     super.initState();
     _activation = sl<ActivationChangeNotifier>();
     _activation.addListener(_onActivationChanged);
+    _controller.addListener(_onCodeChanged);
 
     // Animación del logo (entrada + respiración)
     _logoController = AnimationController(
@@ -81,6 +83,7 @@ class ActivationPageState extends State<ActivationPage>
   @override
   void dispose() {
     _activation.removeListener(_onActivationChanged);
+    _controller.removeListener(_onCodeChanged);
     _controller.dispose();
     _logoController.dispose();
     _fadeController.dispose();
@@ -97,11 +100,47 @@ class ActivationPageState extends State<ActivationPage>
     }
   }
 
+  void _onCodeChanged() {
+    if (_inputError == null || _controller.text.trim().isEmpty || !mounted) {
+      return;
+    }
+    setState(() => _inputError = null);
+  }
+
+  Future<void> _submitActivation() async {
+    if (_activation.isLoading) return;
+
+    FocusScope.of(context).unfocus();
+    final code = _controller.text.trim();
+    if (code.isEmpty) {
+      setState(() => _inputError = 'Ingresa el código de activación.');
+      _shakeController.forward(from: 0);
+      return;
+    }
+
+    setState(() => _inputError = null);
+    try {
+      final error = await _activation.activate(code);
+      if (!mounted || error == null) return;
+      setState(() => _inputError = error);
+      _shakeController.forward(from: 0);
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () =>
+            _inputError = 'No se pudo verificar el código. Inténtalo otra vez.',
+      );
+      _shakeController.forward(from: 0);
+      debugPrint('ACTIVATION submit failed: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final activation = _activation;
     final isLoading = activation.isLoading;
     final errorMessage = activation.status.message;
+    final visibleError = _inputError ?? errorMessage;
     final isActivated = activation.canAccessApp;
 
     return Scaffold(
@@ -222,7 +261,7 @@ class ActivationPageState extends State<ActivationPage>
                     Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 350),
-                        child: _buildActivateButton(isLoading, activation),
+                        child: _buildActivateButton(isLoading),
                       ),
                     ),
 
@@ -246,8 +285,8 @@ class ActivationPageState extends State<ActivationPage>
                               ),
                             );
                           },
-                          child: errorMessage.isNotEmpty && !isActivated
-                              ? _buildErrorMessage(errorMessage)
+                          child: visibleError.isNotEmpty && !isActivated
+                              ? _buildErrorMessage(visibleError)
                               : isActivated
                               ? _buildSuccessMessage()
                               : const SizedBox.shrink(),
@@ -351,6 +390,7 @@ class ActivationPageState extends State<ActivationPage>
           child: TextField(
             controller: _controller,
             enabled: !isLoading,
+            onSubmitted: (_) => _submitActivation(),
             textCapitalization: TextCapitalization.characters,
             style: const TextStyle(
               fontSize: 17,
@@ -399,21 +439,12 @@ class ActivationPageState extends State<ActivationPage>
     );
   }
 
-  Widget _buildActivateButton(
-    bool isLoading,
-    ActivationChangeNotifier activation,
-  ) {
+  Widget _buildActivateButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: isLoading
-            ? null
-            : () async {
-                final code = _controller.text.trim();
-                if (code.isEmpty) return;
-                await activation.activate(code);
-              },
+        onPressed: isLoading ? null : _submitActivation,
         style:
             ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

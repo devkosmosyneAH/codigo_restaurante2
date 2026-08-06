@@ -168,88 +168,91 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
       return Scaffold(
         body: SafeArea(child: widget.child),
-        bottomNavigationBar: NavigationBar(
-          backgroundColor: Colors.white,
-          indicatorColor: AppColors.primary.withValues(alpha: 0.14),
-          selectedIndex: mobileSelectedIndex,
-          height: textScale > 1.15 ? 80 : 72,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: (index) {
-            if (showMoreMenu && index == quickNavItems.length) {
-              showModalBottomSheet<void>(
-                context: context,
-                showDragHandle: true,
-                builder: (sheetContext) {
-                  return SafeArea(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight:
-                            MediaQuery.sizeOf(sheetContext).height * 0.75,
-                      ),
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final item in navItems)
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: NavigationBar(
+            backgroundColor: Colors.white,
+            indicatorColor: AppColors.primary.withValues(alpha: 0.14),
+            selectedIndex: mobileSelectedIndex,
+            height: textScale > 1.15 ? 80 : 72,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: (index) {
+              if (showMoreMenu && index == quickNavItems.length) {
+                showModalBottomSheet<void>(
+                  context: context,
+                  showDragHandle: true,
+                  builder: (sheetContext) {
+                    return SafeArea(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.sizeOf(sheetContext).height * 0.75,
+                        ),
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final item in navItems)
+                              ListTile(
+                                leading: Icon(
+                                  item.icon,
+                                  color: _matchesPath(currentPath, item.path)
+                                      ? AppColors.primary
+                                      : null,
+                                ),
+                                title: Text(item.label),
+                                selected: _matchesPath(currentPath, item.path),
+                                selectedTileColor: AppColors.primary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                onTap: () {
+                                  Navigator.of(sheetContext).pop();
+                                  context.go(item.path);
+                                },
+                              ),
+                            const Divider(height: 1),
                             ListTile(
-                              leading: Icon(
-                                item.icon,
-                                color: _matchesPath(currentPath, item.path)
-                                    ? AppColors.primary
-                                    : null,
-                              ),
-                              title: Text(item.label),
-                              selected: _matchesPath(currentPath, item.path),
-                              selectedTileColor: AppColors.primary.withValues(
-                                alpha: 0.08,
-                              ),
-                              onTap: () {
+                              leading: const Icon(Icons.logout_rounded),
+                              iconColor: AppColors.secondary,
+                              title: const Text('Cerrar sesión'),
+                              onTap: () async {
                                 Navigator.of(sheetContext).pop();
-                                context.go(item.path);
+                                await auth.logout();
                               },
                             ),
-                          const Divider(height: 1),
-                          ListTile(
-                            leading: const Icon(Icons.logout_rounded),
-                            iconColor: AppColors.secondary,
-                            title: const Text('Cerrar sesión'),
-                            onTap: () async {
-                              Navigator.of(sheetContext).pop();
-                              await auth.logout();
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-              return;
-            }
-            context.go(quickNavItems[index].path);
-          },
-          destinations: [
-            ...quickNavItems.map(
-              (item) => NavigationDestination(
-                icon:
-                    item.path == AppRouter.pedidos &&
-                        puedeAprobarPedidos &&
-                        pendientesCount > 0
-                    ? Badge(
-                        label: Text('$pendientesCount'),
-                        backgroundColor: Colors.orange,
-                        child: Icon(item.icon),
-                      )
-                    : Icon(item.icon),
-                selectedIcon: Icon(item.icon, color: AppColors.primary),
-                label: item.label,
+                    );
+                  },
+                );
+                return;
+              }
+              context.go(quickNavItems[index].path);
+            },
+            destinations: [
+              ...quickNavItems.map(
+                (item) => NavigationDestination(
+                  icon:
+                      item.path == AppRouter.pedidos &&
+                          puedeAprobarPedidos &&
+                          pendientesCount > 0
+                      ? Badge(
+                          label: Text('$pendientesCount'),
+                          backgroundColor: Colors.orange,
+                          child: Icon(item.icon),
+                        )
+                      : Icon(item.icon),
+                  selectedIcon: Icon(item.icon, color: AppColors.primary),
+                  label: item.label,
+                ),
               ),
-            ),
-            if (showMoreMenu)
-              const NavigationDestination(
-                icon: Icon(Icons.menu_rounded),
-                label: 'Más',
-              ),
-          ],
+              if (showMoreMenu)
+                const NavigationDestination(
+                  icon: Icon(Icons.menu_rounded),
+                  label: 'Más',
+                ),
+            ],
+          ),
         ),
       );
     }

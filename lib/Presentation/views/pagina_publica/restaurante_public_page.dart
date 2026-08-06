@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:restaurant_app/Presentation/config/routes/app_router.dart';
@@ -78,154 +79,164 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 560),
           curve: Curves.easeOutCubic,
-          child: CustomScrollView(
-            slivers: [
-              _HeroSliver(config: config),
-              SliverToBoxAdapter(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final maxContentWidth = width >= 1800
-                        ? 1380.0
-                        : width >= 1440
-                        ? 1280.0
-                        : width >= 1100
-                        ? 1080.0
-                        : width >= 900
-                        ? 920.0
-                        : width;
-                    final horizontalInset = width >= 1800
-                        ? 56.0
-                        : width >= 1440
-                        ? 40.0
-                        : width >= 1200
-                        ? 32.0
-                        : width >= 900
-                        ? 20.0
-                        : 0.0;
+          child: SafeArea(
+            top: false,
+            child: CustomScrollView(
+              slivers: [
+                _HeroSliver(config: config),
+                SliverToBoxAdapter(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth;
+                      final maxContentWidth = width >= 1800
+                          ? 1380.0
+                          : width >= 1440
+                          ? 1280.0
+                          : width >= 1100
+                          ? 1080.0
+                          : width >= 900
+                          ? 920.0
+                          : width;
+                      final horizontalInset = width >= 1800
+                          ? 56.0
+                          : width >= 1440
+                          ? 40.0
+                          : width >= 1200
+                          ? 32.0
+                          : width >= 900
+                          ? 20.0
+                          : 0.0;
 
-                    return Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: horizontalInset,
-                            ),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: maxContentWidth,
+                      return Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: horizontalInset,
                               ),
-                              child: Column(
-                                children: [
-                                  _SoftReveal(
-                                    child: PublicGalleryView(
-                                      images: galleryState.images
-                                          .where(
-                                            (image) =>
-                                                image.activo && !image.isCover,
-                                          )
-                                          .take(12)
-                                          .toList(),
-                                    ),
-                                  ),
-                                  if (config.mostrarBotonMenu ||
-                                      config.mostrarBotonReservas)
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: maxContentWidth,
+                                ),
+                                child: Column(
+                                  children: [
                                     _SoftReveal(
-                                      child: _CtaSection(config: config),
+                                      child: PublicGalleryView(
+                                        images: galleryState.images
+                                            .where(
+                                              (image) =>
+                                                  image.activo &&
+                                                  !image.isCover,
+                                            )
+                                            .take(12)
+                                            .toList(),
+                                      ),
                                     ),
-                                  const SizedBox(height: 4),
-                                  _SoftReveal(
-                                    delay: Duration(milliseconds: 70),
-                                    child: _ExperienciasSection(config: config),
-                                  ),
-                                  const _SoftReveal(
-                                    delay: Duration(milliseconds: 110),
-                                    child: _EstadisticasSection(),
-                                  ),
-                                  if (config.mostrarBotonMenu)
+                                    if (config.mostrarBotonMenu ||
+                                        config.mostrarBotonReservas)
+                                      _SoftReveal(
+                                        child: _CtaSection(config: config),
+                                      ),
+                                    const SizedBox(height: 4),
                                     _SoftReveal(
-                                      delay: Duration(milliseconds: 140),
-                                      child: _MenuPreviewSection(
+                                      delay: Duration(milliseconds: 70),
+                                      child: _ExperienciasSection(
                                         config: config,
                                       ),
                                     ),
-                                  const _SoftReveal(
-                                    delay: Duration(milliseconds: 160),
-                                    child: _TestimoniosSection(),
-                                  ),
-                                  if (config.mostrarBotonReservas)
-                                    _SoftReveal(
-                                      delay: Duration(milliseconds: 170),
-                                      child: _ReservasBannerSection(
-                                        config: config,
+                                    const _SoftReveal(
+                                      delay: Duration(milliseconds: 110),
+                                      child: _EstadisticasSection(),
+                                    ),
+                                    if (config.mostrarBotonMenu)
+                                      _SoftReveal(
+                                        delay: Duration(milliseconds: 140),
+                                        child: _MenuPreviewSection(
+                                          config: config,
+                                        ),
                                       ),
+                                    const _SoftReveal(
+                                      delay: Duration(milliseconds: 160),
+                                      child: _TestimoniosSection(),
                                     ),
-                                  if (config.descripcion.isNotEmpty)
+                                    if (config.mostrarBotonReservas)
+                                      _SoftReveal(
+                                        delay: Duration(milliseconds: 170),
+                                        child: _ReservasBannerSection(
+                                          config: config,
+                                        ),
+                                      ),
+                                    if (config.descripcion.isNotEmpty)
+                                      _SoftReveal(
+                                        delay: Duration(milliseconds: 190),
+                                        child: _AboutSection(config: config),
+                                      ),
+                                    const _SoftReveal(
+                                      delay: Duration(milliseconds: 210),
+                                      child: _EventosSection(),
+                                    ),
                                     _SoftReveal(
-                                      delay: Duration(milliseconds: 190),
-                                      child: _AboutSection(config: config),
-                                    ),
-                                  const _SoftReveal(
-                                    delay: Duration(milliseconds: 210),
-                                    child: _EventosSection(),
-                                  ),
-                                  _SoftReveal(
-                                    delay: const Duration(milliseconds: 230),
-                                    child: LayoutBuilder(
-                                      builder: (ctx, cons) {
-                                        if (cons.maxWidth >= 800 &&
-                                            config.horarios.isNotEmpty) {
-                                          return Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                      delay: const Duration(milliseconds: 230),
+                                      child: LayoutBuilder(
+                                        builder: (ctx, cons) {
+                                          if (cons.maxWidth >= 800 &&
+                                              config.horarios.isNotEmpty) {
+                                            return Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Expanded(
+                                                  child: _HorariosSection(
+                                                    config: config,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: _ContactoSection(
+                                                    config: config,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }
+                                          return Column(
                                             children: [
-                                              Expanded(
-                                                child: _HorariosSection(
+                                              if (config.horarios.isNotEmpty)
+                                                _HorariosSection(
                                                   config: config,
                                                 ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: _ContactoSection(
-                                                  config: config,
-                                                ),
-                                              ),
+                                              _ContactoSection(config: config),
                                             ],
                                           );
-                                        }
-                                        return Column(
-                                          children: [
-                                            if (config.horarios.isNotEmpty)
-                                              _HorariosSection(config: config),
-                                            _ContactoSection(config: config),
-                                          ],
-                                        );
-                                      },
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                  if (config.facebook.isNotEmpty ||
-                                      config.instagram.isNotEmpty)
+                                    if (config.facebook.isNotEmpty ||
+                                        config.instagram.isNotEmpty)
+                                      _SoftReveal(
+                                        delay: Duration(milliseconds: 250),
+                                        child: _RedesSection(config: config),
+                                      ),
                                     _SoftReveal(
-                                      delay: Duration(milliseconds: 250),
-                                      child: _RedesSection(config: config),
+                                      delay: const Duration(milliseconds: 270),
+                                      child: _UbicacionMapSection(
+                                        config: config,
+                                      ),
                                     ),
-                                  _SoftReveal(
-                                    delay: const Duration(milliseconds: 270),
-                                    child: _UbicacionMapSection(config: config),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        _Footer(config: config),
-                      ],
-                    );
-                  },
+                          _Footer(config: config),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           builder: (context, value, child) {
             if (MediaQuery.disableAnimationsOf(context)) return child!;
@@ -2211,7 +2222,7 @@ class _RedesSection extends StatelessWidget {
               _SocialButton(
                 label: 'Instagram',
                 color: const Color(0xFFE1306C),
-                imageAsset: 'assets/images/instagram_logo.png',
+                icon: FontAwesomeIcons.instagram,
                 onTap: () => _launchExternalUrl(config.instagram),
               ),
           ];
@@ -2248,20 +2259,18 @@ class _SocialButton extends StatelessWidget {
     required this.color,
     required this.onTap,
     this.icon,
-    this.imageAsset,
   });
 
   final String label;
   final Color color;
   final IconData? icon;
-  final String? imageAsset;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final iconWidget = imageAsset != null
-        ? Image.asset(imageAsset!, width: 18, height: 18)
-        : Icon(icon, size: 18);
+    final iconWidget = icon != null
+        ? Icon(icon, size: 18)
+        : const FaIcon(FontAwesomeIcons.instagram, size: 18);
     return _InteractiveScale(
       hoverScale: 1.015,
       child: OutlinedButton.icon(
@@ -2285,12 +2294,30 @@ class _SocialButton extends StatelessWidget {
 // UBICACIÓN EN MAPA
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _UbicacionMapSection extends StatelessWidget {
+class _UbicacionMapSection extends StatefulWidget {
   const _UbicacionMapSection({required this.config});
   final PublicConfig config;
 
   @override
+  State<_UbicacionMapSection> createState() => _UbicacionMapSectionState();
+}
+
+class _UbicacionMapSectionState extends State<_UbicacionMapSection> {
+  bool _mapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // El mapa abre varias teselas de red y está al final de la página.
+    // Diferirlo permite que el contenido principal sea interactivo primero.
+    Future<void>.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) setState(() => _mapReady = true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final config = widget.config;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
       child: Column(
@@ -2321,9 +2348,22 @@ class _UbicacionMapSection extends StatelessWidget {
                   LayoutBuilder(
                     builder: (ctx, cons) => SizedBox(
                       height: cons.maxWidth >= 700 ? 320 : 220,
-                      child: RepaintBoundary(
-                        child: _MapView(lat: config.mapLat, lng: config.mapLng),
-                      ),
+                      child: _mapReady
+                          ? RepaintBoundary(
+                              child: _MapView(
+                                lat: config.mapLat,
+                                lng: config.mapLng,
+                              ),
+                            )
+                          : const ColoredBox(
+                              color: Color(0xFFEAF2F1),
+                              child: Center(
+                                child: AppLoadingView(
+                                  compact: true,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
 

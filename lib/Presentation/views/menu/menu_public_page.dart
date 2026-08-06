@@ -510,34 +510,37 @@ class _MenuPublicPageState extends ConsumerState<MenuPublicPage>
     final canCall = widget.mesaId != null;
     final cart = ref.watch(cotizacionCartProvider);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      color: Theme.of(context).colorScheme.surface,
-      child: Row(
-        children: [
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: () =>
-                  CotizacionSheet.show(context, mesaId: widget.mesaId),
-              icon: const Icon(Icons.shopping_cart_checkout_rounded),
-              label: Text(
-                cart.totalItems > 0
-                    ? 'Resumen (${cart.totalItems})'
-                    : 'Resumen del pedido',
-              ),
-            ),
-          ),
-          if (canCall) ...[
-            const SizedBox(width: 12),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        color: Theme.of(context).colorScheme.surface,
+        child: Row(
+          children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _callWaiter,
-                icon: const Icon(Icons.campaign_rounded),
-                label: const Text('Llamar mesero'),
+              child: FilledButton.icon(
+                onPressed: () =>
+                    CotizacionSheet.show(context, mesaId: widget.mesaId),
+                icon: const Icon(Icons.shopping_cart_checkout_rounded),
+                label: Text(
+                  cart.totalItems > 0
+                      ? 'Resumen (${cart.totalItems})'
+                      : 'Resumen del pedido',
+                ),
               ),
             ),
+            if (canCall) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _callWaiter,
+                  icon: const Icon(Icons.campaign_rounded),
+                  label: const Text('Llamar mesero'),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

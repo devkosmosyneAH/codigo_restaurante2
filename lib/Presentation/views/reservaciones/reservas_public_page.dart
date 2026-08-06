@@ -70,156 +70,161 @@ class _ReservasPublicPageState extends ConsumerState<ReservasPublicPage> {
         ),
         title: const Text('Fechas disponibles'),
       ),
-      body: FutureBuilder<void>(
-        future: _localeFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const AppLoadingView(message: 'Preparando reservaciones...');
-          }
+      body: SafeArea(
+        top: false,
+        child: FutureBuilder<void>(
+          future: _localeFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const AppLoadingView(
+                message: 'Preparando reservaciones...',
+              );
+            }
 
-          return Column(
-            children: [
-              // ── Banner instructivo ─────────────────────────────
-              _InstructivoBanner(selectedDay: _selectedDay),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Selecciona una fecha',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
+            return Column(
+              children: [
+                // ── Banner instructivo ─────────────────────────────
+                _InstructivoBanner(selectedDay: _selectedDay),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Revisa disponibilidad por fecha y estado del local.',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(height: 10),
-                        TableCalendar(
-                          locale: 'es_ES',
-                          firstDay: DateTime(
-                            DateTime.now().year,
-                            DateTime.now().month,
-                            DateTime.now().day,
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Selecciona una fecha',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
                           ),
-                          lastDay: DateTime.utc(2035, 12, 31),
-                          focusedDay: _focusedDay,
-                          enabledDayPredicate: (day) {
-                            final today = DateTime(
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Revisa disponibilidad por fecha y estado del local.',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 10),
+                          TableCalendar(
+                            locale: 'es_ES',
+                            firstDay: DateTime(
                               DateTime.now().year,
                               DateTime.now().month,
                               DateTime.now().day,
-                            );
-                            return !day.isBefore(today);
-                          },
-                          selectedDayPredicate: (day) =>
-                              isSameDay(day, _selectedDay),
-                          startingDayOfWeek: StartingDayOfWeek.monday,
-                          calendarFormat: CalendarFormat.month,
-                          rowHeight: 38,
-                          daysOfWeekHeight: 20,
-                          availableCalendarFormats: const {
-                            CalendarFormat.month: 'Mes',
-                          },
-                          headerStyle: const HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                          ),
-                          calendarStyle: CalendarStyle(
-                            outsideDaysVisible: false,
-                            markerDecoration: const BoxDecoration(
-                              color: AppColors.secondary,
-                              shape: BoxShape.circle,
                             ),
-                            selectedDecoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
+                            lastDay: DateTime.utc(2035, 12, 31),
+                            focusedDay: _focusedDay,
+                            enabledDayPredicate: (day) {
+                              final today = DateTime(
+                                DateTime.now().year,
+                                DateTime.now().month,
+                                DateTime.now().day,
+                              );
+                              return !day.isBefore(today);
+                            },
+                            selectedDayPredicate: (day) =>
+                                isSameDay(day, _selectedDay),
+                            startingDayOfWeek: StartingDayOfWeek.monday,
+                            calendarFormat: CalendarFormat.month,
+                            rowHeight: 38,
+                            daysOfWeekHeight: 20,
+                            availableCalendarFormats: const {
+                              CalendarFormat.month: 'Mes',
+                            },
+                            headerStyle: const HeaderStyle(
+                              formatButtonVisible: false,
+                              titleCentered: true,
                             ),
-                            todayDecoration: BoxDecoration(
-                              color: AppColors.primaryLight.withValues(
-                                alpha: 0.5,
+                            calendarStyle: CalendarStyle(
+                              outsideDaysVisible: false,
+                              markerDecoration: const BoxDecoration(
+                                color: AppColors.secondary,
+                                shape: BoxShape.circle,
                               ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          calendarBuilders: CalendarBuilders(
-                            markerBuilder: (context, day, events) {
-                              final estado = _estadoDelDia(
-                                day,
-                                reservas,
-                                cotizacionesMes,
-                              );
-                              if (estado == _EstadoDiaCalendario.libre) {
-                                return null;
-                              }
-                              return Positioned(
-                                bottom: 5,
-                                child: Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    color: _colorEstadoDia(estado),
-                                    shape: BoxShape.circle,
-                                  ),
+                              selectedDecoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              todayDecoration: BoxDecoration(
+                                color: AppColors.primaryLight.withValues(
+                                  alpha: 0.5,
                                 ),
-                              );
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            calendarBuilders: CalendarBuilders(
+                              markerBuilder: (context, day, events) {
+                                final estado = _estadoDelDia(
+                                  day,
+                                  reservas,
+                                  cotizacionesMes,
+                                );
+                                if (estado == _EstadoDiaCalendario.libre) {
+                                  return null;
+                                }
+                                return Positioned(
+                                  bottom: 5,
+                                  child: Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      color: _colorEstadoDia(estado),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            eventLoader: (day) =>
+                                _eventsForDay(day, reservas, cotizacionesMes),
+                            onDaySelected: (selectedDay, focusedDay) {
+                              setState(() {
+                                _selectedDay = selectedDay;
+                                _focusedDay = focusedDay;
+                              });
+                              ref
+                                  .read(reservasProvider.notifier)
+                                  .loadDia(selectedDay);
+                            },
+                            onPageChanged: (focusedDay) {
+                              _focusedDay = focusedDay;
+                              ref
+                                  .read(reservasProvider.notifier)
+                                  .loadMes(focusedDay);
                             },
                           ),
-                          eventLoader: (day) =>
-                              _eventsForDay(day, reservas, cotizacionesMes),
-                          onDaySelected: (selectedDay, focusedDay) {
-                            setState(() {
-                              _selectedDay = selectedDay;
-                              _focusedDay = focusedDay;
-                            });
-                            ref
-                                .read(reservasProvider.notifier)
-                                .loadDia(selectedDay);
-                          },
-                          onPageChanged: (focusedDay) {
-                            _focusedDay = focusedDay;
-                            ref
-                                .read(reservasProvider.notifier)
-                                .loadMes(focusedDay);
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        _buildLegend(),
-                      ],
+                          const SizedBox(height: 10),
+                          _buildLegend(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: _buildDisponibilidad(
-                  reservas,
-                  mesas,
-                  cotizacionesPendientes,
+                const Divider(height: 1),
+                Expanded(
+                  child: _buildDisponibilidad(
+                    reservas,
+                    mesas,
+                    cotizacionesPendientes,
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

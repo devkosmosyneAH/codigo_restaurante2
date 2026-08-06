@@ -201,7 +201,7 @@ class _PublicProductoCardState extends State<PublicProductoCard> {
                                           ? widget.onOpenOptions
                                           : widget.onAdd,
                                       child: const SizedBox.square(
-                                        dimension: 34,
+                                        dimension: 44,
                                         child: Icon(
                                           Icons.add_rounded,
                                           color: Colors.white,
@@ -318,12 +318,12 @@ class _QtyBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, size: 16, color: onTap != null ? color : Colors.grey),
+    return SizedBox.square(
+      dimension: 44,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Icon(icon, size: 18, color: onTap != null ? color : Colors.grey),
       ),
     );
   }

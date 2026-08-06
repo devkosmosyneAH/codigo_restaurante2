@@ -551,7 +551,7 @@ class _ProductoCardState extends State<_ProductoCard> {
                         ),
                       ),
                       SizedBox(
-                        height: 30,
+                        height: 44,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary,
@@ -560,7 +560,7 @@ class _ProductoCardState extends State<_ProductoCard> {
                           ),
                           onPressed: () =>
                               widget.onAgregar(p, _varianteSeleccionada),
-                          child: const Icon(Icons.add, size: 16),
+                          child: const Icon(Icons.add, size: 18),
                         ),
                       ),
                     ],

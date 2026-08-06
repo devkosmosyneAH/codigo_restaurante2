@@ -28,6 +28,10 @@ class MenuNotifier extends StateNotifier<MenuState> {
   final UpdateVariante _updateVariante;
   final DeleteVariante _deleteVariante;
   final Future<void> Function(String reason)? _requestCloudSync;
+  final Stream<MenuChangeEvent>? _menuChanges;
+  StreamSubscription<MenuChangeEvent>? _menuChangesSubscription;
+  Timer? _menuChangeDebounce;
+  final Map<String, bool> _pendingDisponibilidad = <String, bool>{};
 
   MenuNotifier({
     required GetCategorias getCategorias,
@@ -44,6 +48,7 @@ class MenuNotifier extends StateNotifier<MenuState> {
     required UpdateVariante updateVariante,
     required DeleteVariante deleteVariante,
     Future<void> Function(String reason)? requestCloudSync,
+    Stream<MenuChangeEvent>? menuChanges,
   }) : _getCategorias = getCategorias,
        _createCategoria = createCategoria,
        _updateCategoria = updateCategoria,
@@ -58,7 +63,41 @@ class MenuNotifier extends StateNotifier<MenuState> {
        _updateVariante = updateVariante,
        _deleteVariante = deleteVariante,
        _requestCloudSync = requestCloudSync,
-       super(const MenuState());
+       _menuChanges = menuChanges,
+       super(const MenuState()) {
+    _menuChangesSubscription = _menuChanges?.listen(_onMenuChange);
+  }
+
+  void _onMenuChange(MenuChangeEvent event) {
+    if (event.restaurantId != sl<TenantContext>().restaurantId) return;
+    _pendingDisponibilidad.addAll(event.disponibilidadPorProducto);
+    _menuChangeDebounce?.cancel();
+    _menuChangeDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (_pendingDisponibilidad.isEmpty) return;
+      final updates = Map<String, bool>.from(_pendingDisponibilidad);
+      _pendingDisponibilidad.clear();
+
+      var changed = false;
+      final productos = state.productos
+          .map((producto) {
+            final disponible = updates[producto.id];
+            if (disponible == null || disponible == producto.disponible) {
+              return producto;
+            }
+            changed = true;
+            return producto.copyWith(disponible: disponible);
+          })
+          .toList(growable: false);
+      if (changed) state = state.copyWith(productos: productos);
+    });
+  }
+
+  @override
+  void dispose() {
+    _menuChangeDebounce?.cancel();
+    _menuChangesSubscription?.cancel();
+    super.dispose();
+  }
 
   void _triggerCloudSync(String reason) {
     final callback = _requestCloudSync;
@@ -367,5 +406,6 @@ final menuProvider = StateNotifierProvider<MenuNotifier, MenuState>((ref) {
     deleteVariante: sl(),
     requestCloudSync: (reason) =>
         sl<HybridSyncOrchestrator>().syncNow(reason: reason),
+    menuChanges: sl<HybridSyncOrchestrator>().menuChanges,
   );
 });

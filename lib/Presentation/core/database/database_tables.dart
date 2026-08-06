@@ -33,6 +33,7 @@ class DatabaseTables {
     _createProductoIngredientesTable,
     _createSyncLogTable,
     _createSyncAuditLogTable,
+    _createSyncStateTable,
     _createSecurityAuditLogTable,
     _createSriSecuencialesTable,
     _createSriFiscalConfigsTable,
@@ -146,6 +147,7 @@ class DatabaseTables {
       imagen_version INTEGER,
       imagen_local_cache_path TEXT,
       disponible INTEGER NOT NULL DEFAULT 1,
+      disponibilidad_updated_at INTEGER NOT NULL DEFAULT 0,
       activo INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -670,6 +672,18 @@ class DatabaseTables {
       restaurant_id TEXT NOT NULL,
       detail TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  ''';
+
+  /// Metadatos de sincronizaci\u00f3n por restaurante. Se usa para cursores
+  /// incrementales que no pertenecen a una entidad de negocio.
+  static const String _createSyncStateTable = '''
+    CREATE TABLE IF NOT EXISTS sync_state (
+      restaurant_id TEXT NOT NULL,
+      state_key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (restaurant_id, state_key)
     )
   ''';
 

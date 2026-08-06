@@ -8,6 +8,23 @@ import 'package:restaurant_app/Presentation/core/config/app_environment.dart';
 import 'package:restaurant_app/Presentation/core/firebase/firebase_initializer.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_record.dart';
 
+/// Delta angosto de disponibilidad. [updatedAt] es un timestamp de servidor
+/// usado exclusivamente como cursor; [version] conserva el `updated_at` del
+/// producto para que el pull completo pueda reconciliarse sin perder el flag.
+class DisponibilidadUpdate {
+  const DisponibilidadUpdate({
+    required this.productoId,
+    required this.disponible,
+    required this.updatedAt,
+    required this.version,
+  });
+
+  final String productoId;
+  final bool disponible;
+  final int updatedAt;
+  final String version;
+}
+
 abstract class SyncCloudBackend {
   Future<void> ensureAvailable();
 
@@ -37,6 +54,36 @@ abstract class SyncCloudBackend {
   }) async {
     return const {};
   }
+
+  /// Lee solo los flags de disponibilidad. El cursor es inclusivo para no
+  /// perder cambios que compartan el mismo milisegundo de servidor.
+  Future<Map<String, DisponibilidadUpdate>> listDisponibilidad({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) async {
+    return const {};
+  }
+
+  /// Escribe el producto y su proyeccion angosta en una actualizacion RTDB
+  /// multipath, de modo que ambas rutas nunca divergen por una doble escritura.
+  Future<void> setProductoConDisponibilidad({
+    required String restaurantId,
+    required String productoId,
+    required Map<String, dynamic> producto,
+    required bool mergeProducto,
+    required Map<String, dynamic> disponibilidad,
+  }) async {}
+
+  /// Completa una proyeccion de disponibilidad ya existente sin reescribir
+  /// productos. Solo se usa durante el bootstrap de instalaciones anteriores.
+  Future<void> setDisponibilidadBatch({
+    required String restaurantId,
+    required Map<String, Map<String, dynamic>> updates,
+  }) async {}
+
+  /// Valor especial que RTDB resuelve con su propio reloj al confirmar el
+  /// update, evitando depender de la hora de cada dispositivo.
+  Object availabilityTimestamp();
 
   Object serverTimestamp();
 }
@@ -214,7 +261,106 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
   }
 
   @override
+  Future<Map<String, DisponibilidadUpdate>> listDisponibilidad({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) async {
+    final uri = _disponibilidadUri(
+      restaurantId: restaurantId,
+      updatedAtInclusive: updatedAtInclusive,
+    );
+    final response = await _request(
+      uri,
+      (target) => _httpClient.get(target).timeout(_requestTimeout),
+    );
+    _ensureSuccess(response, operation: 'listDisponibilidad', uri: uri);
+    return _parseDisponibilidad(response.body);
+  }
+
+  @override
+  Future<void> setProductoConDisponibilidad({
+    required String restaurantId,
+    required String productoId,
+    required Map<String, dynamic> producto,
+    required bool mergeProducto,
+    required Map<String, dynamic> disponibilidad,
+  }) async {
+    final safeProducto = _sanitizePayload(producto);
+    final safeDisponibilidad = _sanitizePayload(disponibilidad);
+    if (safeProducto.isEmpty || safeDisponibilidad.isEmpty) {
+      throw StateError('No se puede sincronizar disponibilidad sin producto.');
+    }
+
+    final updates = <String, dynamic>{
+      'disponibilidad/$productoId': safeDisponibilidad,
+    };
+    if (mergeProducto) {
+      for (final entry in safeProducto.entries) {
+        updates['productos/$productoId/${entry.key}'] = entry.value;
+      }
+    } else {
+      updates['productos/$productoId'] = safeProducto;
+    }
+
+    final rootUri = _restaurantUri(restaurantId);
+    final response = await _request(
+      rootUri,
+      (target) => _httpClient
+          .patch(target, headers: _jsonHeaders, body: jsonEncode(updates))
+          .timeout(_requestTimeout),
+    );
+    _ensureSuccess(
+      response,
+      operation: 'setProductoConDisponibilidad',
+      uri: rootUri,
+    );
+
+    final productoUri = _documentUri(
+      restaurantId: restaurantId,
+      collection: 'productos',
+      documentId: productoId,
+    );
+    final verification = await _request(
+      productoUri,
+      (target) => _httpClient.get(target).timeout(_requestTimeout),
+    );
+    _ensureSuccess(verification, operation: 'verifyProducto', uri: productoUri);
+    if (verification.body.trim().isEmpty ||
+        verification.body.trim() == 'null') {
+      throw StateError('Realtime DB no conservo productos/$productoId.');
+    }
+  }
+
+  @override
+  Future<void> setDisponibilidadBatch({
+    required String restaurantId,
+    required Map<String, Map<String, dynamic>> updates,
+  }) async {
+    if (updates.isEmpty) return;
+    final payload = <String, dynamic>{};
+    for (final entry in updates.entries) {
+      payload['disponibilidad/${entry.key}'] = _sanitizePayload(entry.value);
+    }
+    final uri = _restaurantUri(restaurantId);
+    final response = await _request(
+      uri,
+      (target) => _httpClient
+          .patch(target, headers: _jsonHeaders, body: jsonEncode(payload))
+          .timeout(_requestTimeout),
+    );
+    _ensureSuccess(response, operation: 'setDisponibilidadBatch', uri: uri);
+  }
+
+  @override
   Object serverTimestamp() => DateTime.now().toIso8601String();
+
+  @override
+  Object availabilityTimestamp() => const {'.sv': 'timestamp'};
+
+  Uri _restaurantUri(String restaurantId) {
+    final safeRestaurantId = Uri.encodeComponent(restaurantId);
+    return Uri.parse('$_baseUrl/restaurantes/$safeRestaurantId.json');
+  }
 
   Uri _documentUri({
     required String restaurantId,
@@ -282,6 +428,49 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
         'startAt': jsonEncode(trimmedCursor),
       },
     );
+  }
+
+  Uri _disponibilidadUri({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) {
+    final safeRestaurantId = Uri.encodeComponent(restaurantId);
+    final base = Uri.parse(
+      '$_baseUrl/restaurantes/$safeRestaurantId/disponibilidad.json',
+    );
+    if (updatedAtInclusive == null) return base;
+    return base.replace(
+      queryParameters: {
+        'orderBy': jsonEncode('u'),
+        'startAt': jsonEncode(updatedAtInclusive),
+      },
+    );
+  }
+
+  Map<String, DisponibilidadUpdate> _parseDisponibilidad(String body) {
+    if (body.trim().isEmpty || body.trim() == 'null') return const {};
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) return const {};
+    final output = <String, DisponibilidadUpdate>{};
+    for (final entry in decoded.entries) {
+      if (entry.value is! Map) continue;
+      final value = Map<String, dynamic>.from(entry.value as Map);
+      final updatedAt = (value['u'] as num?)?.toInt();
+      if (updatedAt == null) continue;
+      output[entry.key.toString()] = DisponibilidadUpdate(
+        productoId: entry.key.toString(),
+        disponible: _readBool(value['d']),
+        updatedAt: updatedAt,
+        version: value['v']?.toString() ?? '',
+      );
+    }
+    return output;
+  }
+
+  bool _readBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return value?.toString().toLowerCase() == 'true' || value == '1';
   }
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> source) {
@@ -578,7 +767,108 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
   }
 
   @override
+  Future<Map<String, DisponibilidadUpdate>> listDisponibilidad({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) async {
+    Query query = _collectionRef(
+      restaurantId: restaurantId,
+      collection: 'disponibilidad',
+    );
+    if (updatedAtInclusive != null) {
+      query = query.orderByChild('u').startAt(updatedAtInclusive);
+    }
+
+    final snapshot = await query.once();
+    final raw = snapshot.snapshot.value;
+    if (raw is! Map) return const {};
+
+    final result = <String, DisponibilidadUpdate>{};
+    for (final entry in raw.entries) {
+      if (entry.value is! Map) continue;
+      final value = Map<String, dynamic>.from(entry.value as Map);
+      final updatedAt = (value['u'] as num?)?.toInt();
+      if (updatedAt == null) continue;
+      result[entry.key.toString()] = DisponibilidadUpdate(
+        productoId: entry.key.toString(),
+        disponible: _readBool(value['d']),
+        updatedAt: updatedAt,
+        version: value['v']?.toString() ?? '',
+      );
+    }
+    return result;
+  }
+
+  @override
+  Future<void> setProductoConDisponibilidad({
+    required String restaurantId,
+    required String productoId,
+    required Map<String, dynamic> producto,
+    required bool mergeProducto,
+    required Map<String, dynamic> disponibilidad,
+  }) async {
+    final safeProducto = _sanitizePayload(producto);
+    final safeDisponibilidad = _sanitizePayload(disponibilidad);
+    if (safeProducto.isEmpty || safeDisponibilidad.isEmpty) {
+      throw StateError('No se puede sincronizar disponibilidad sin producto.');
+    }
+
+    final updates = <String, Object?>{
+      'disponibilidad/$productoId': safeDisponibilidad,
+    };
+    if (mergeProducto) {
+      for (final entry in safeProducto.entries) {
+        updates['productos/$productoId/${entry.key}'] = entry.value;
+      }
+    } else {
+      updates['productos/$productoId'] = safeProducto;
+    }
+
+    final root = _firebaseDatabase
+        .ref()
+        .child('restaurantes')
+        .child(restaurantId.trim());
+    await root.update(updates);
+
+    final productoSnapshot = await _documentRef(
+      restaurantId: restaurantId,
+      collection: 'productos',
+      documentId: productoId,
+    ).once();
+    if (!productoSnapshot.snapshot.exists ||
+        productoSnapshot.snapshot.value == null) {
+      throw StateError('Realtime DB no conservo productos/$productoId.');
+    }
+  }
+
+  @override
+  Future<void> setDisponibilidadBatch({
+    required String restaurantId,
+    required Map<String, Map<String, dynamic>> updates,
+  }) async {
+    if (updates.isEmpty) return;
+    final payload = <String, Object?>{};
+    for (final entry in updates.entries) {
+      payload['disponibilidad/${entry.key}'] = _sanitizePayload(entry.value);
+    }
+    await _firebaseDatabase
+        .ref()
+        .child('restaurantes')
+        .child(restaurantId.trim())
+        .update(payload);
+  }
+
+  @override
   Object serverTimestamp() => DateTime.now().toIso8601String();
+
+  @override
+  Object availabilityTimestamp() => const {'.sv': 'timestamp'};
+
+  bool _readBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return value?.toString().toLowerCase() == 'true' || value == '1';
+  }
 
   Map<String, dynamic> _sanitizePayload(Map<String, dynamic> source) {
     final output = <String, dynamic>{};
@@ -711,6 +1001,38 @@ class SyncCloudService {
     );
   }
 
+  /// Consulta puntual y angosta para los dispositivos operativos. No ejecuta
+  /// `ensureAvailable()` en cada pulso: el orquestador ya valida la sesion al
+  /// iniciar y una lectura REST/once fallida se maneja como fallo transitorio.
+  Future<Map<String, DisponibilidadUpdate>> pullDisponibilidad({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) => _backend.listDisponibilidad(
+    restaurantId: restaurantId,
+    updatedAtInclusive: updatedAtInclusive,
+  );
+
+  /// Materializa el feed angosto en instalaciones que ya tenian productos
+  /// antes de que existiera `/disponibilidad`. Recibe el resultado de la
+  /// lectura de productos que el bootstrap normal ya hizo, asi no agrega otra
+  /// descarga pesada. Solo escribe IDs que todavia no tienen espejo.
+  Future<void> completarDisponibilidadFaltante({
+    required String restaurantId,
+    required Map<String, Map<String, dynamic>> productos,
+  }) async {
+    if (productos.isEmpty) return;
+    final actuales = await pullDisponibilidad(restaurantId: restaurantId);
+    final missing = <String, Map<String, dynamic>>{};
+    for (final entry in productos.entries) {
+      if (actuales.containsKey(entry.key)) continue;
+      missing[entry.key] = _availabilityPayloadFromProduct(entry.value);
+    }
+    await _backend.setDisponibilidadBatch(
+      restaurantId: restaurantId,
+      updates: missing,
+    );
+  }
+
   /// Lee una coleccion publica sin exigir la comprobacion de salud de la raiz.
   Future<Map<String, Map<String, dynamic>>> listPublicCollection({
     required String restaurantId,
@@ -747,38 +1069,54 @@ class SyncCloudService {
       );
     }
 
-    switch (record.operacion) {
-      case SyncOperation.insert:
-        // PUT/set creates an exact replica for a new document.
-        await _backend.setDocument(
-          restaurantId: restaurantId,
-          collection: record.tabla,
-          documentId: record.registroId,
-          data: _buildPayload(record),
-          // Una solicitud pública puede haber llegado antes de que el
-          // dispositivo autenticado procese su sync_log. Conservamos sus
-          // metadatos públicos al materializar la copia local.
-          merge: record.tabla == 'cotizaciones',
-        );
-      case SyncOperation.update:
-        // PATCH/update changes only the current SQLite snapshot fields.
-        await _backend.setDocument(
-          restaurantId: restaurantId,
-          collection: record.tabla,
-          documentId: record.registroId,
-          data: _buildPayload(record),
-          merge: true,
-        );
-      case SyncOperation.delete:
-        // Keep a tombstone long enough for offline devices to observe the
-        // deletion during their next pull.
-        await _backend.setDocument(
-          restaurantId: restaurantId,
-          collection: record.tabla,
-          documentId: record.registroId,
-          data: _buildTombstone(record, restaurantId),
-          merge: false,
-        );
+    if (record.tabla == 'productos') {
+      final producto = record.operacion == SyncOperation.delete
+          ? _buildTombstone(record, restaurantId)
+          : _buildPayload(record);
+      await _backend.setProductoConDisponibilidad(
+        restaurantId: restaurantId,
+        productoId: record.registroId,
+        producto: producto,
+        mergeProducto: record.operacion == SyncOperation.update,
+        disponibilidad: _availabilityPayloadFromProduct(
+          producto,
+          forceUnavailable: record.operacion == SyncOperation.delete,
+        ),
+      );
+    } else {
+      switch (record.operacion) {
+        case SyncOperation.insert:
+          // PUT/set creates an exact replica for a new document.
+          await _backend.setDocument(
+            restaurantId: restaurantId,
+            collection: record.tabla,
+            documentId: record.registroId,
+            data: _buildPayload(record),
+            // Una solicitud pública puede haber llegado antes de que el
+            // dispositivo autenticado procese su sync_log. Conservamos sus
+            // metadatos públicos al materializar la copia local.
+            merge: record.tabla == 'cotizaciones',
+          );
+        case SyncOperation.update:
+          // PATCH/update changes only the current SQLite snapshot fields.
+          await _backend.setDocument(
+            restaurantId: restaurantId,
+            collection: record.tabla,
+            documentId: record.registroId,
+            data: _buildPayload(record),
+            merge: true,
+          );
+        case SyncOperation.delete:
+          // Keep a tombstone long enough for offline devices to observe the
+          // deletion during their next pull.
+          await _backend.setDocument(
+            restaurantId: restaurantId,
+            collection: record.tabla,
+            documentId: record.registroId,
+            data: _buildTombstone(record, restaurantId),
+            merge: false,
+          );
+      }
     }
 
     await _writeRemoteSyncStatusIfDue(record, restaurantId);
@@ -863,5 +1201,32 @@ class SyncCloudService {
           : record.registroId.substring(separator + 1);
     }
     return payload;
+  }
+
+  Map<String, dynamic> _availabilityPayloadFromProduct(
+    Map<String, dynamic> producto, {
+    bool forceUnavailable = false,
+  }) {
+    final deleted = producto['deleted_at'] != null;
+    final active = _readBool(producto['activo'], defaultValue: true);
+    final available = _readBool(producto['disponible'], defaultValue: true);
+    final version = producto['updated_at']?.toString().trim();
+    return {
+      'd': !forceUnavailable && !deleted && active && available,
+      'u': _backend.availabilityTimestamp(),
+      'v': (version == null || version.isEmpty)
+          ? _now().toUtc().toIso8601String()
+          : version,
+    };
+  }
+
+  bool _readBool(dynamic value, {required bool defaultValue}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value.toString().trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+    return defaultValue;
   }
 }

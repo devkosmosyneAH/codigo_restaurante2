@@ -35,6 +35,10 @@ class HybridSyncOrchestrator {
   // solo revisa cambios hechos desde otro dispositivo y evita lecturas
   // frecuentes para conservar el uso gratuito de Firebase.
   static const Duration _pulseInterval = Duration(minutes: 5);
+  // La disponibilidad es el unico dato del menu que bloquea una venta. Su
+  // feed es angosto y puntual, por eso puede refrescarse sin sondear las
+  // demas colecciones operativas cada pocos segundos.
+  static const Duration _availabilityPulseInterval = Duration(seconds: 20);
   static const Duration _localChangeDebounce = Duration(milliseconds: 700);
   static const Duration _tombstoneRetention = Duration(days: 30);
   // Purging requires downloading every synchronized collection. Tombstones
@@ -70,8 +74,11 @@ class HybridSyncOrchestrator {
 
   final Map<String, Set<String>> _tableColumnsCache = {};
   final Set<String> _menuBootstrapCheckedTenants = <String>{};
+  final StreamController<MenuChangeEvent> _menuChangesController =
+      StreamController<MenuChangeEvent>.broadcast();
 
   Timer? _pulseTimer;
+  Timer? _availabilityPulseTimer;
   Timer? _localChangeTimer;
   StreamSubscription<dynamic>? _connectivitySub;
   StreamSubscription<void>? _pendingChangesSub;
@@ -79,8 +86,14 @@ class HybridSyncOrchestrator {
   bool _started = false;
   bool _online = false;
   bool _syncInProgress = false;
+  bool _availabilityPullInProgress = false;
   bool _cloudSyncEnabled = true;
   DateTime? _lastTombstonePurgeAt;
+
+  /// Eventos locales emitidos solo despues de que SQLite confirmo el cambio.
+  /// La UI no necesita volver a consultar categorias ni variantes para pintar
+  /// una disponibilidad que ya conoce por ID.
+  Stream<MenuChangeEvent> get menuChanges => _menuChangesController.stream;
 
   /// Fuerza un ciclo de sincronizacion en este momento.
   ///
@@ -139,11 +152,19 @@ class HybridSyncOrchestrator {
     );
 
     await _runCycle(reason: 'startup');
+    await _pullAvailabilityChanges();
+    _availabilityPulseTimer = Timer.periodic(
+      _availabilityPulseInterval,
+      (_) => unawaited(_pullAvailabilityChanges()),
+    );
   }
 
   Future<void> stop() async {
     _pulseTimer?.cancel();
     _pulseTimer = null;
+
+    _availabilityPulseTimer?.cancel();
+    _availabilityPulseTimer = null;
 
     _localChangeTimer?.cancel();
     _localChangeTimer = null;
@@ -212,7 +233,16 @@ class HybridSyncOrchestrator {
         restaurantId: tenantId,
         collection: 'productos',
       );
-      if (remoteProducts.isNotEmpty) return;
+      if (remoteProducts.isNotEmpty) {
+        // Aprovecha la lectura completa que ya hacia el bootstrap para
+        // completar, una sola vez por sesion, el espejo angosto de productos
+        // creados antes de esta mejora.
+        await _cloudService.completarDisponibilidadFaltante(
+          restaurantId: tenantId,
+          productos: remoteProducts,
+        );
+        return;
+      }
 
       for (final table in const ['categorias', 'productos', 'variantes']) {
         final rows = table == 'variantes'
@@ -336,6 +366,110 @@ class HybridSyncOrchestrator {
         );
       }
     }
+  }
+
+  /// Aplica solamente `id -> disponible` desde el nodo angosto. No registra
+  /// operaciones locales ni hace un pull de productos completo; asi el evento
+  /// puede pintar la UI sin reiniciar el menu ni aumentar las lecturas RTDB.
+  Future<void> _pullAvailabilityChanges() async {
+    if (!_started ||
+        !_cloudSyncEnabled ||
+        !_online ||
+        _availabilityPullInProgress) {
+      return;
+    }
+
+    final tenantId = _tenantContext.restaurantId.trim();
+    if (tenantId.isEmpty) return;
+
+    _availabilityPullInProgress = true;
+    try {
+      final cursor = await _loadAvailabilityCursor(tenantId);
+      final updates = await _cloudService.pullDisponibilidad(
+        restaurantId: tenantId,
+        updatedAtInclusive: cursor,
+      );
+      if (updates.isEmpty) return;
+
+      final pendingFiltered = <String, DisponibilidadUpdate>{};
+      for (final entry in updates.entries) {
+        final pending = await _syncManager.obtenerPendiente(
+          tabla: 'productos',
+          registroId: entry.key,
+        );
+        if (pending == null) {
+          pendingFiltered[entry.key] = entry.value;
+        }
+      }
+
+      final applied = <String, bool>{};
+      if (pendingFiltered.isNotEmpty) {
+        await _dbHelper.transaction((txn) async {
+          for (final entry in pendingFiltered.entries) {
+            final update = entry.value;
+            final data = <String, dynamic>{
+              'disponible': update.disponible ? 1 : 0,
+              'disponibilidad_updated_at': update.updatedAt,
+            };
+            // La version viene del mismo write atomico del producto. Mantener
+            // su updated_at evita que el pull completo posterior lo revierta.
+            if (DateTime.tryParse(update.version) != null) {
+              data['updated_at'] = update.version;
+            }
+            final count = await txn.update(
+              'productos',
+              data,
+              where:
+                  'id = ? AND restaurant_id = ? '
+                  'AND disponibilidad_updated_at < ?',
+              whereArgs: [entry.key, tenantId, update.updatedAt],
+            );
+            if (count > 0) applied[entry.key] = update.disponible;
+          }
+        });
+      }
+
+      final newestCursor = updates.values
+          .map((update) => update.updatedAt)
+          .reduce((a, b) => a > b ? a : b);
+      await _saveAvailabilityCursor(tenantId, newestCursor);
+
+      if (applied.isNotEmpty) {
+        _menuChangesController.add(
+          MenuChangeEvent.disponibilidad(
+            restaurantId: tenantId,
+            disponibilidadPorProducto: applied,
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      // No auditar cada pulso fallido: hacerlo convertiría una caida de red en
+      // escrituras locales permanentes. El siguiente pulso reintentara.
+      debugPrint('SYNC_AVAILABILITY_PULL_ERROR $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      _availabilityPullInProgress = false;
+    }
+  }
+
+  Future<int?> _loadAvailabilityCursor(String tenantId) async {
+    final rows = await _dbHelper.query(
+      'sync_state',
+      where: 'restaurant_id = ? AND state_key = ?',
+      whereArgs: [tenantId, 'disponibilidad_cursor_v1'],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return int.tryParse(rows.first['value']?.toString() ?? '');
+  }
+
+  Future<void> _saveAvailabilityCursor(String tenantId, int cursor) async {
+    await _dbHelper.insert('sync_state', {
+      'restaurant_id': tenantId,
+      'state_key': 'disponibilidad_cursor_v1',
+      'value': cursor.toString(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> _applyRemoteUpsert({
@@ -837,4 +971,15 @@ class _TableLookup {
 
   final String where;
   final List<Object?> whereArgs;
+}
+
+/// Cambio del menu que puede aplicarse en memoria sin hacer una recarga SQL.
+class MenuChangeEvent {
+  const MenuChangeEvent.disponibilidad({
+    required this.restaurantId,
+    required this.disponibilidadPorProducto,
+  });
+
+  final String restaurantId;
+  final Map<String, bool> disponibilidadPorProducto;
 }

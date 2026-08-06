@@ -16,6 +16,14 @@
           }
         },
 
+        "disponibilidad": {
+          ".read": "$restaurantId == 'la_pena_001' && auth != null && (root.child('auth').child(auth.uid).child('admin').val() == true || root.child('auth').child(auth.uid).child('roles').val().contains('mesero') || root.child('auth').child(auth.uid).child('roles').val().contains('cajero'))",
+          ".indexOn": ["u"],
+          "$productoId": {
+            ".validate": "newData.hasChildren(['d', 'u', 'v']) && newData.child('d').isBoolean() && newData.child('u').isNumber() && newData.child('v').isString()"
+          }
+        },
+
         "categorias": {
           ".read": "$restaurantId == 'la_pena_001'",
           "$categoriaId": {

@@ -106,13 +106,37 @@ class _AgregarItemSheetState extends ConsumerState<AgregarItemSheet>
 
   Future<void> _confirmar() async {
     if (_productoSeleccionado == null || _agregando) return;
+
+    // La hoja puede haber quedado abierta mientras otro dispositivo agotaba
+    // el producto. Nunca confiar en la referencia que se selecciono antes:
+    // validar contra el estado reactivo justo antes de crear el pedido.
+    final productoActual = ref
+        .read(menuProvider)
+        .productos
+        .where((producto) => producto.id == _productoSeleccionado!.id)
+        .firstOrNull;
+    if (productoActual == null ||
+        !productoActual.activo ||
+        !productoActual.disponible) {
+      _resetSeleccion();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Este producto ya no esta disponible.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _agregando = true);
 
     final now = DateTime.now();
     final item = PedidoItem(
       id: _uuid.v4(),
       pedidoId: widget.pedidoId,
-      productoId: _productoSeleccionado!.id,
+      productoId: productoActual.id,
       varianteId: _varianteSeleccionada?.id,
       cantidad: _cantidad,
       precioUnitario: _precio,
@@ -121,8 +145,8 @@ class _AgregarItemSheetState extends ConsumerState<AgregarItemSheet>
           : _obsController.text.trim(),
       estado: EstadoPedido.creado,
       productoNombre: _varianteSeleccionada != null
-          ? '${_productoSeleccionado!.nombre} (${_varianteSeleccionada!.nombre})'
-          : _productoSeleccionado!.nombre,
+          ? '${productoActual.nombre} (${_varianteSeleccionada!.nombre})'
+          : productoActual.nombre,
       varianteNombre: _varianteSeleccionada?.nombre,
       createdAt: now,
       updatedAt: now,

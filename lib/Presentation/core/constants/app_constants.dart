@@ -31,7 +31,7 @@ class AppConstants {
   // ── Base de datos ────────────────────────────────────────────────────────
   /// Nombre único de la base SQLite compartido por móvil y desktop.
   static const String databaseName = 'data.db';
-  static const int databaseVersion = 38;
+  static const int databaseVersion = 39;
 
   // ── Facturación electrónica / SRI ───────────────────────────────────────
   /// Endpoint base del backend puente para facturación electrónica.
@@ -56,6 +56,7 @@ class AppConstants {
   // ── Restaurante fijo ─────────────────────────────────────────────────────
   /// ID interno único de La Peña Bar&House.
   static const String defaultRestaurantId = 'la_pena_001';
+
   /// Identificador interno único de La Peña Bar&House.
   static const String restaurantId = defaultRestaurantId;
   static const String restaurantName = 'La Peña Bar&House';

@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
@@ -9,9 +10,14 @@ import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 
 class _RecordingBackend implements SyncCloudBackend {
   int setCalls = 0;
+  int productoConDisponibilidadCalls = 0;
+  int disponibilidadBatchCalls = 0;
   int auditCalls = 0;
   String? latestAuditRecordId;
   final List<({String collection, String? updatedAfter})> collectionReads = [];
+  Map<String, DisponibilidadUpdate> disponibilidad = {};
+  Map<String, dynamic>? lastDisponibilidadProducto;
+  Map<String, Map<String, dynamic>>? lastDisponibilidadBatch;
 
   @override
   Future<void> deleteDocument({
@@ -32,6 +38,36 @@ class _RecordingBackend implements SyncCloudBackend {
     collectionReads.add((collection: collection, updatedAfter: updatedAfter));
     return const {};
   }
+
+  @override
+  Future<Map<String, DisponibilidadUpdate>> listDisponibilidad({
+    required String restaurantId,
+    int? updatedAtInclusive,
+  }) async => disponibilidad;
+
+  @override
+  Future<void> setProductoConDisponibilidad({
+    required String restaurantId,
+    required String productoId,
+    required Map<String, dynamic> producto,
+    required bool mergeProducto,
+    required Map<String, dynamic> disponibilidad,
+  }) async {
+    productoConDisponibilidadCalls++;
+    lastDisponibilidadProducto = disponibilidad;
+  }
+
+  @override
+  Future<void> setDisponibilidadBatch({
+    required String restaurantId,
+    required Map<String, Map<String, dynamic>> updates,
+  }) async {
+    disponibilidadBatchCalls++;
+    lastDisponibilidadBatch = updates;
+  }
+
+  @override
+  Object availabilityTimestamp() => 1723000000;
 
   @override
   Object serverTimestamp() => 'server-time';
@@ -61,6 +97,8 @@ class _MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
 class _MockSyncManager extends Mock implements SyncManager {}
 
+class _MockConnectivity extends Mock implements Connectivity {}
+
 SyncRecord _record({String id = 'sync-1'}) {
   return SyncRecord(
     id: id,
@@ -70,6 +108,29 @@ SyncRecord _record({String id = 'sync-1'}) {
     restaurantId: 'la_pena_001',
     datos: {'id': 'venta-1', 'total': 12.5},
     createdAt: DateTime.utc(2026, 8, 5),
+  );
+}
+
+SyncRecord _productoRecord({
+  String id = 'sync-producto-1',
+  bool disponible = false,
+}) {
+  return SyncRecord(
+    id: id,
+    tabla: 'productos',
+    registroId: 'producto-1',
+    operacion: SyncOperation.update,
+    restaurantId: 'la_pena_001',
+    datos: {
+      'id': 'producto-1',
+      'restaurant_id': 'la_pena_001',
+      'nombre': 'Producto de prueba',
+      'precio': 10.0,
+      'disponible': disponible ? 1 : 0,
+      'activo': 1,
+      'updated_at': '2026-08-06T12:00:00.000Z',
+    },
+    createdAt: DateTime.utc(2026, 8, 6),
   );
 }
 
@@ -104,10 +165,74 @@ void main() {
     expect(backend.auditCalls, 1);
   });
 
+  test(
+    'product sync atomically mirrors the narrow availability payload',
+    () async {
+      final backend = _RecordingBackend();
+      final service = SyncCloudService(
+        backend: backend,
+        enforcePlatformSupport: false,
+      );
+
+      await service.pushRecord(_productoRecord());
+
+      expect(backend.productoConDisponibilidadCalls, 1);
+      expect(backend.setCalls, 0);
+      expect(backend.lastDisponibilidadProducto?['d'], isFalse);
+      expect(
+        backend.lastDisponibilidadProducto?['v'],
+        '2026-08-06T12:00:00.000Z',
+      );
+    },
+  );
+
+  test(
+    'availability bootstrap only writes product IDs missing from the feed',
+    () async {
+      final backend = _RecordingBackend()
+        ..disponibilidad = {
+          'producto-existente': const DisponibilidadUpdate(
+            productoId: 'producto-existente',
+            disponible: true,
+            updatedAt: 1723000000,
+            version: '2026-08-06T12:00:00.000Z',
+          ),
+        };
+      final service = SyncCloudService(
+        backend: backend,
+        enforcePlatformSupport: false,
+      );
+
+      await service.completarDisponibilidadFaltante(
+        restaurantId: 'la_pena_001',
+        productos: {
+          'producto-existente': {'disponible': 1, 'activo': 1},
+          'producto-faltante': {
+            'disponible': 0,
+            'activo': 1,
+            'updated_at': '2026-08-06T12:00:00.000Z',
+          },
+        },
+      );
+
+      expect(backend.disponibilidadBatchCalls, 1);
+      expect(
+        backend.lastDisponibilidadBatch?.keys,
+        contains('producto-faltante'),
+      );
+      expect(backend.lastDisponibilidadBatch, hasLength(1));
+      expect(
+        backend.lastDisponibilidadBatch?['producto-faltante']?['d'],
+        isFalse,
+      );
+    },
+  );
+
   test('long sessions do not rerun the menu bootstrap check', () async {
     final backend = _RecordingBackend();
     final db = _MockDatabaseHelper();
     final syncManager = _MockSyncManager();
+    final connectivity = _MockConnectivity();
     final cloudService = SyncCloudService(
       backend: backend,
       enforcePlatformSupport: false,
@@ -144,12 +269,19 @@ void main() {
     when(
       () => syncManager.onPendingChanges,
     ).thenAnswer((_) => const Stream<void>.empty());
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    when(
+      () => connectivity.onConnectivityChanged,
+    ).thenAnswer((_) => const Stream<List<ConnectivityResult>>.empty());
 
     final orchestrator = HybridSyncOrchestrator(
       syncManager: syncManager,
       cloudService: cloudService,
       dbHelper: db,
       tenantContext: TenantContext(),
+      connectivity: connectivity,
     );
 
     await orchestrator.syncNow(reason: 'first');

@@ -1210,6 +1210,23 @@ class DatabaseHelper {
         'UPDATE productos SET drive_file_id = NULL, drive_public_url = NULL',
       );
     }
+    if (oldVersion < 39) {
+      await _addColumnIfMissing(
+        db,
+        'productos',
+        'disponibilidad_updated_at',
+        'INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sync_state (
+          restaurant_id TEXT NOT NULL,
+          state_key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (restaurant_id, state_key)
+        )
+      ''');
+    }
   }
 
   static Future<void> _addColumnIfMissing(

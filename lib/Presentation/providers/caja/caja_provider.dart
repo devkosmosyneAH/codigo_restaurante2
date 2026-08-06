@@ -64,6 +64,11 @@ class CajaState {
 
   int get totalPedidosPendientes => pedidosParaCobrar.length;
 
+  int get totalCotizacionesPendientes => cotizacionesParaCobrar.length;
+
+  int get totalRegistrosPendientes =>
+      totalPedidosPendientes + totalCotizacionesPendientes;
+
   double get totalVentasHoy => ventasHoy.fold(0.0, (sum, v) => sum + v.total);
 
   int get cantidadVentasHoy => ventasHoy.length;
@@ -77,7 +82,11 @@ class CajaState {
             ? pedido.totalCalculado
             : pedido.total;
         return sum + totalPedido;
-      });
+      }) +
+      cotizacionesParaCobrar.fold(
+        0.0,
+        (sum, cotizacion) => sum + cotizacion.total,
+      );
 
   Map<MetodoPago, double> get ventasPorMetodo {
     final map = <MetodoPago, double>{};
@@ -206,7 +215,9 @@ class CajaNotifier extends StateNotifier<CajaState> {
     state = state.copyWith(isProcessing: true, clearError: true);
 
     // Construir detalles desde los items del pedido
-    final ventaId = const Uuid().v4();
+    // El ID es determinista por pedido: además de la validación local evita
+    // que dos dispositivos sincronicen ventas distintas para la misma fuente.
+    final ventaId = 'venta_pedido_${pedido.id}';
     final detalles = pedido.items.map((item) {
       return VentaDetalle(
         id: const Uuid().v4(),
@@ -237,8 +248,11 @@ class CajaNotifier extends StateNotifier<CajaState> {
       );
     }
 
+    final subtotalPedido = pedido.items.isEmpty
+        ? pedido.total
+        : pedido.totalCalculado;
     final subtotal =
-        pedido.totalCalculado + extraItems.fold(0.0, (s, e) => s + e.subtotal);
+        subtotalPedido + extraItems.fold(0.0, (s, e) => s + e.subtotal);
     final totalConDescuento = (subtotal - descuento).clamp(0.0, subtotal);
 
     final ventaBase = Venta(
@@ -330,7 +344,9 @@ class CajaNotifier extends StateNotifier<CajaState> {
   }) async {
     state = state.copyWith(isProcessing: true, clearError: true);
 
-    final ventaId = const Uuid().v4();
+    // Una cotización solo puede materializar una venta final, incluso si dos
+    // dispositivos intentan sincronizar el cobro al mismo tiempo.
+    final ventaId = 'venta_cotizacion_${cotizacion.id}';
 
     final detalles = items.map((item) {
       return VentaDetalle(

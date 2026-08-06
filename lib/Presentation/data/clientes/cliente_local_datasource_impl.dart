@@ -335,11 +335,24 @@ class ClienteLocalDataSourceImpl implements ClienteLocalDataSource {
         FROM ventas
         WHERE restaurant_id = ?
           AND (
+            id_cliente = (
+              SELECT id_cliente
+              FROM clientes
+              WHERE restaurant_id = ? AND cedula = ?
+              LIMIT 1
+            )
+            OR
             cliente_identificacion = ?
             OR identificacion_cliente = ?
           )
         ''',
-        [scopedRestaurantId, _cleanCedula(cedula), _cleanCedula(cedula)],
+        [
+          scopedRestaurantId,
+          scopedRestaurantId,
+          _cleanCedula(cedula),
+          _cleanCedula(cedula),
+          _cleanCedula(cedula),
+        ],
       );
 
       if (rows.isEmpty) {

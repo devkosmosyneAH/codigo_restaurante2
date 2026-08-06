@@ -24,10 +24,59 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
 
   static const _tableCotizaciones = 'cotizaciones';
   static const _tableItems = 'cotizacion_items';
+  static const _estadosValidos = {
+    'borrador',
+    'pendiente',
+    'aceptada',
+    'rechazada',
+    'finalizada',
+    'cobrada',
+  };
+
+  void _validateCotizacion(CotizacionModel cotizacion) {
+    if (cotizacion.restaurantId != _tenantContext.restaurantId) {
+      throw const DatabaseException(
+        message: 'La cotización no pertenece al restaurante activo.',
+      );
+    }
+    if (!_estadosValidos.contains(cotizacion.estado)) {
+      throw const DatabaseException(message: 'Estado de cotización inválido.');
+    }
+    if (!cotizacion.subtotal.isFinite ||
+        !cotizacion.total.isFinite ||
+        cotizacion.subtotal < 0 ||
+        cotizacion.total < 0 ||
+        !cotizacion.descuento.isFinite ||
+        !cotizacion.tasaImpuesto.isFinite ||
+        cotizacion.descuento < 0 ||
+        cotizacion.descuento > 100 ||
+        cotizacion.tasaImpuesto < 0 ||
+        cotizacion.tasaImpuesto > 100) {
+      throw const DatabaseException(
+        message:
+            'Los importes, descuento o impuesto de la cotización no son válidos.',
+      );
+    }
+    for (final item in cotizacion.items) {
+      if (item.cantidad <= 0 ||
+          !item.precioUnitario.isFinite ||
+          !item.subtotal.isFinite ||
+          item.precioUnitario < 0 ||
+          item.subtotal < 0 ||
+          !item.descuento.isFinite ||
+          item.descuento < 0 ||
+          item.descuento > 100) {
+        throw const DatabaseException(
+          message: 'Uno de los ítems de la cotización tiene valores inválidos.',
+        );
+      }
+    }
+  }
 
   @override
   Future<void> createCotizacion(CotizacionModel cotizacion) async {
     try {
+      _validateCotizacion(cotizacion);
       await _dbHelper.transaction((txn) async {
         await txn.insert(_tableCotizaciones, cotizacion.toMap());
         for (final item in cotizacion.items) {
@@ -89,12 +138,20 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
   @override
   Future<void> updateEstado(String cotizacionId, String estado) async {
     try {
-      await _dbHelper.update(
+      if (!_estadosValidos.contains(estado)) {
+        throw const DatabaseException(
+          message: 'Estado de cotización inválido.',
+        );
+      }
+      final affected = await _dbHelper.update(
         _tableCotizaciones,
         {'estado': estado},
-        where: 'id = ?',
-        whereArgs: [cotizacionId],
+        where: 'id = ? AND restaurant_id = ?',
+        whereArgs: [cotizacionId, _tenantContext.restaurantId],
       );
+      if (affected == 0) {
+        throw const DatabaseException(message: 'Cotización no encontrada.');
+      }
       await _syncManager.registrarOperacion(
         tabla: _tableCotizaciones,
         registroId: cotizacionId,
@@ -102,6 +159,8 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
         restaurantId: _tenantContext.restaurantId,
         datos: {'estado': estado},
       );
+    } on DatabaseException {
+      rethrow;
     } catch (e) {
       throw DatabaseException(message: 'Error al actualizar cotizacion: $e');
     }
@@ -110,6 +169,7 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
   @override
   Future<void> updateCotizacion(CotizacionModel cotizacion) async {
     try {
+      _validateCotizacion(cotizacion);
       final previousRows = await _dbHelper.query(
         _tableItems,
         where: 'cotizacion_id = ?',
@@ -122,12 +182,15 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
       final currentIds = cotizacion.items.map((item) => item.id).toSet();
 
       await _dbHelper.transaction((txn) async {
-        await txn.update(
+        final affected = await txn.update(
           _tableCotizaciones,
           cotizacion.toMap(),
-          where: 'id = ?',
-          whereArgs: [cotizacion.id],
+          where: 'id = ? AND restaurant_id = ?',
+          whereArgs: [cotizacion.id, cotizacion.restaurantId],
         );
+        if (affected == 0) {
+          throw const DatabaseException(message: 'Cotización no encontrada.');
+        }
         await txn.delete(
           _tableItems,
           where: 'cotizacion_id = ?',
@@ -164,6 +227,8 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
           datos: CotizacionItemModel.fromEntity(item).toMap(),
         );
       }
+    } on DatabaseException {
+      rethrow;
     } catch (e) {
       throw DatabaseException(message: 'Error al actualizar cotizacion: $e');
     }
@@ -172,6 +237,15 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
   @override
   Future<void> deleteCotizacion(String cotizacionId) async {
     try {
+      final cotizacionRows = await _dbHelper.query(
+        _tableCotizaciones,
+        where: 'id = ? AND restaurant_id = ?',
+        whereArgs: [cotizacionId, _tenantContext.restaurantId],
+        limit: 1,
+      );
+      if (cotizacionRows.isEmpty) {
+        throw const DatabaseException(message: 'Cotización no encontrada.');
+      }
       final itemRows = await _dbHelper.query(
         _tableItems,
         where: 'cotizacion_id = ?',
@@ -191,8 +265,8 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
         );
         await txn.delete(
           _tableCotizaciones,
-          where: 'id = ?',
-          whereArgs: [cotizacionId],
+          where: 'id = ? AND restaurant_id = ?',
+          whereArgs: [cotizacionId, _tenantContext.restaurantId],
         );
       });
 
@@ -211,6 +285,8 @@ class CotizacionLocalDataSourceImpl implements CotizacionLocalDataSource {
         operacion: SyncOperation.delete,
         restaurantId: _tenantContext.restaurantId,
       );
+    } on DatabaseException {
+      rethrow;
     } catch (e) {
       throw DatabaseException(message: 'Error al eliminar cotizacion: $e');
     }

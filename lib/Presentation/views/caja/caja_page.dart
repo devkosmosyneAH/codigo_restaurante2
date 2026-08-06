@@ -384,8 +384,8 @@ class _CajaPageState extends ConsumerState<CajaPage>
                             width: cardWidth,
                             child: _ResumenCard(
                               icon: Icons.pending_actions_outlined,
-                              label: 'Por cobrar',
-                              value: '${state.totalPedidosPendientes}',
+                              label: 'Pendientes',
+                              value: '${state.totalRegistrosPendientes}',
                               color: cs.tertiary,
                             ),
                           ),
@@ -893,8 +893,11 @@ class _PedidoCobrarCard extends StatelessWidget {
                   builder: (context) {
                     final extrasTotal = CobroDialog.extrasTotalFor(pedido.id);
                     final descuento = CobroDialog.descuentoFor(pedido.id);
+                    final subtotalPedido = pedido.items.isEmpty
+                        ? pedido.total
+                        : pedido.totalCalculado;
                     final totalMostrado =
-                        pedido.totalCalculado + extrasTotal - descuento;
+                        subtotalPedido + extrasTotal - descuento;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
@@ -1036,8 +1039,9 @@ class _CotizacionEventoCard extends StatelessWidget {
                   builder: (context) {
                     final extrasTotal = CobroDialog.extrasTotalFor(c.id);
                     final descuento = CobroDialog.descuentoFor(c.id);
-                    final base = c.items.fold(0.0, (s, i) => s + i.subtotal);
-                    final totalMostrado = base + extrasTotal - descuento;
+                    final totalMostrado = CobroDialog.totalPreviewForCotizacion(
+                      c,
+                    );
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,

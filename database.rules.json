@@ -86,7 +86,7 @@
           "$id": { ".read": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true", ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true" }
         },
         "clientes": {
-          "$id": { ".read": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true", ".write": "$restaurantId == 'la_pena_001' && auth != null && root.child('auth').child(auth.uid).child('admin').val() == true" }
+          "$id": { ".read": "$restaurantId == 'la_pena_001' && auth != null && (root.child('auth').child(auth.uid).child('admin').val() == true || root.child('auth').child(auth.uid).child('roles').val().contains('cajero'))", ".write": "$restaurantId == 'la_pena_001' && auth != null && (root.child('auth').child(auth.uid).child('admin').val() == true || root.child('auth').child(auth.uid).child('roles').val().contains('cajero'))" }
         },
         "ventas": {
           "$id": { ".read": "$restaurantId == 'la_pena_001' && auth != null && (root.child('auth').child(auth.uid).child('admin').val() == true || root.child('auth').child(auth.uid).child('roles').val().contains('cajero'))", ".write": "$restaurantId == 'la_pena_001' && auth != null && (root.child('auth').child(auth.uid).child('admin').val() == true || root.child('auth').child(auth.uid).child('roles').val().contains('cajero'))" }

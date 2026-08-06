@@ -38,7 +38,10 @@ class _DraftItem {
     this.descuento = 0,
   }) : id = id ?? const Uuid().v4();
 
-  double get subtotal => cantidad * precioUnitario * (1 - descuento / 100);
+  double get subtotal =>
+      cantidad *
+      precioUnitario *
+      (1 - descuento.clamp(0.0, 100.0).toDouble() / 100);
 
   CotizacionItem toEntity(String cotizacionId) => CotizacionItem(
     id: id,
@@ -106,11 +109,23 @@ class _CotizacionManualFormPageState
 
   // ── Totales calculados ────────────────────────────────────────────
   double get _subtotal => _items.fold(0.0, (s, i) => s + i.subtotal);
+  double _porcentajeSeguro(String value) =>
+      (double.tryParse(value) ?? 0).clamp(0.0, 100.0).toDouble();
+
+  String? _validarPorcentaje(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final porcentaje = double.tryParse(value);
+    if (porcentaje == null || porcentaje < 0 || porcentaje > 100) {
+      return 'Ingresa un valor entre 0 y 100';
+    }
+    return null;
+  }
+
   double get _descuentoMonto =>
-      _subtotal * (double.tryParse(_descuentoCtrl.text) ?? 0) / 100;
+      _subtotal * _porcentajeSeguro(_descuentoCtrl.text) / 100;
   double get _impuestoMonto =>
       (_subtotal - _descuentoMonto) *
-      (double.tryParse(_tasaImpCtrl.text) ?? 0) /
+      _porcentajeSeguro(_tasaImpCtrl.text) /
       100;
   double get _total => _subtotal - _descuentoMonto + _impuestoMonto;
 
@@ -535,6 +550,7 @@ class _CotizacionManualFormPageState
                         suffixText: '%',
                         isDense: true,
                       ),
+                      validator: _validarPorcentaje,
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
@@ -556,6 +572,7 @@ class _CotizacionManualFormPageState
                         suffixText: '%',
                         isDense: true,
                       ),
+                      validator: _validarPorcentaje,
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
@@ -829,8 +846,8 @@ class _CotizacionManualFormPageState
     final cotizacionId = widget.cotizacion?.id ?? const Uuid().v4();
     final items = _items.map((i) => i.toEntity(cotizacionId)).toList();
     final subtotal = items.fold(0.0, (s, i) => s + i.subtotal);
-    final descPct = double.tryParse(_descuentoCtrl.text) ?? 0;
-    final impPct = double.tryParse(_tasaImpCtrl.text) ?? 0;
+    final descPct = _porcentajeSeguro(_descuentoCtrl.text);
+    final impPct = _porcentajeSeguro(_tasaImpCtrl.text);
     final descMonto = subtotal * descPct / 100;
     final total = subtotal - descMonto + (subtotal - descMonto) * impPct / 100;
 
@@ -1277,6 +1294,16 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
                       suffixText: '%',
                       isDense: true,
                     ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final descuento = double.tryParse(v);
+                      if (descuento == null ||
+                          descuento < 0 ||
+                          descuento > 100) {
+                        return '0 a 100';
+                      }
+                      return null;
+                    },
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -1348,7 +1375,9 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
       descripcion: _descCtrl.text.trim(),
       cantidad: int.tryParse(_cantidadCtrl.text) ?? 1,
       precioUnitario: double.tryParse(_precioCtrl.text) ?? 0,
-      descuento: double.tryParse(_descuentoCtrl.text) ?? 0,
+      descuento: (double.tryParse(_descuentoCtrl.text) ?? 0)
+          .clamp(0.0, 100.0)
+          .toDouble(),
     );
     Navigator.of(context).pop();
     widget.onSave(draft);

@@ -54,6 +54,25 @@ class CobroDialog extends ConsumerStatefulWidget {
   static double descuentoFor(String cotizacionId) =>
       _CobroDialogState._descuentoMontoCache[cotizacionId] ?? 0.0;
 
+  /// Total de vista previa para una cotización pendiente de cobro.
+  /// Mantiene la tarjeta de caja alineada con el cálculo que verá el cajero
+  /// en el diálogo, incluidos descuento, IVA y extras aún no confirmados.
+  static double totalPreviewForCotizacion(Cotizacion cotizacion) {
+    final extras = extrasTotalFor(cotizacion.id);
+    final subtotalOriginal = cotizacion.items.fold<double>(
+      0.0,
+      (sum, item) => sum + item.subtotal,
+    );
+    final subtotal = subtotalOriginal + extras;
+    final double descuento =
+        _CobroDialogState._descuentoMontoCache.containsKey(cotizacion.id)
+        ? descuentoFor(cotizacion.id)
+        : subtotal * (cotizacion.descuento.clamp(0.0, 100.0).toDouble() / 100);
+    final base = (subtotal - descuento).clamp(0.0, subtotal).toDouble();
+    final tasa = cotizacion.tasaImpuesto.clamp(0.0, 100.0).toDouble() / 100;
+    return base + (base * tasa);
+  }
+
   /// Muestra el diálogo de cobro para una [Cotizacion] aceptada,
   /// reutilizando exactamente la misma UX que el cobro de pedidos.
   static Future<Venta?> showForCotizacion(
@@ -171,9 +190,14 @@ class _CobroDialogState extends ConsumerState<CobroDialog> {
   bool _ivaActivo = false;
   final _ivaPorcentajeCtrl = TextEditingController(text: '12');
 
-  double get _subtotalPedido => widget.cotizacion != null
-      ? widget.cotizacion!.items.fold(0.0, (s, i) => s + i.subtotal)
-      : widget.pedido!.totalCalculado;
+  double get _subtotalPedido {
+    if (widget.cotizacion != null) {
+      return widget.cotizacion!.items.fold(0.0, (s, i) => s + i.subtotal);
+    }
+    final pedido = widget.pedido!;
+    return pedido.items.isEmpty ? pedido.total : pedido.totalCalculado;
+  }
+
   double get _subtotalExtras =>
       _lineasExtra.fold(0.0, (s, e) => s + e.subtotal);
   double get _subtotal => _subtotalPedido + _subtotalExtras;

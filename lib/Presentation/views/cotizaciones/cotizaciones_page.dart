@@ -186,12 +186,10 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
                   itemBuilder: (_, i) {
                     final c = items[i];
                     final fecha = DateFormat('dd/MM/yyyy').format(c.createdAt);
-                    final evento =
-                        c.fechaEvento == null || c.fechaEvento!.isEmpty
+                    final fechaEvento = DateTime.tryParse(c.fechaEvento ?? '');
+                    final evento = fechaEvento == null
                         ? null
-                        : DateFormat(
-                            'dd/MM/yyyy',
-                          ).format(DateTime.parse(c.fechaEvento!));
+                        : DateFormat('dd/MM/yyyy').format(fechaEvento);
                     return Card(
                       elevation: 1,
                       clipBehavior: Clip.hardEdge,
@@ -364,10 +362,30 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
                   },
                 );
               },
-              error: (e, __) => Center(
-                child: Text(
-                  'Error: $e',
-                  style: const TextStyle(color: AppColors.error),
+              error: (_, __) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off_rounded,
+                        size: 44,
+                        color: AppColors.error,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No se pudieron cargar las cotizaciones.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => ref.invalidate(cotizacionesProvider),
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               loading: () =>
@@ -433,9 +451,10 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
       decimalDigits: 2,
     );
     final fechaCreacion = DateFormat('dd/MM/yyyy').format(c.createdAt);
-    final evento = c.fechaEvento == null || c.fechaEvento!.isEmpty
+    final fechaEvento = DateTime.tryParse(c.fechaEvento ?? '');
+    final evento = fechaEvento == null
         ? null
-        : DateFormat('dd/MM/yyyy').format(DateTime.parse(c.fechaEvento!));
+        : DateFormat('dd/MM/yyyy').format(fechaEvento);
 
     if (!context.mounted) return;
 
@@ -1345,26 +1364,43 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
         return;
       }
 
-      final fecha = DateTime.parse(c.fechaEvento!);
+      final fecha = DateTime.tryParse(c.fechaEvento!);
+      if (fecha == null) {
+        _showMessage(context, 'La fecha del evento no es válida.');
+        return;
+      }
       await ref.read(reservasProvider.notifier).loadMes(fecha);
 
-      ok = await ref
-          .read(reservasProvider.notifier)
-          .crearReserva(
-            tipo: TipoReserva.local,
-            fecha: fecha,
-            horaInicio: '19:00',
-            horaFin: '21:00',
-            numeroPersonas: c.personas ?? 10,
-            clienteNombre: c.clienteNombre,
-            clienteTelefono: c.clienteTelefono,
-            clienteEmail: c.clienteEmail,
-            notas: c.notas,
-            estado: EstadoReserva.confirmada,
-            tipoEvento: 'Evento privado',
-            requerimientos: _buildResumenComidaReserva(c),
-            cotizacionId: c.id,
-          );
+      // Si la reserva se creó en un intento anterior pero falló el cambio de
+      // estado de la cotización, permitir completar la aceptación sin crear
+      // un duplicado.
+      final reservaExistente = ref
+          .read(reservasProvider)
+          .reservasMes
+          .any((reserva) => reserva.cotizacionId == c.id);
+      if (!reservaExistente) {
+        final horario = _horarioReserva(c.horaEvento);
+        ok = await ref
+            .read(reservasProvider.notifier)
+            .crearReserva(
+              idCliente: c.idCliente,
+              tipo: TipoReserva.local,
+              fecha: fecha,
+              horaInicio: horario.inicio,
+              horaFin: horario.fin,
+              numeroPersonas: c.personas ?? 10,
+              clienteNombre: c.clienteNombre,
+              clienteTelefono: c.clienteTelefono,
+              clienteEmail: c.clienteEmail,
+              notas: c.notas,
+              estado: EstadoReserva.confirmada,
+              tipoEvento: 'Evento privado',
+              requerimientos: _buildResumenComidaReserva(c),
+              nombreLocalEvento: c.lugarEvento,
+              precioEstimado: c.total,
+              cotizacionId: c.id,
+            );
+      }
 
       if (!ok) {
         if (context.mounted) {
@@ -1391,6 +1427,25 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
       ),
     );
     ref.invalidate(cotizacionesProvider);
+  }
+
+  ({String inicio, String fin}) _horarioReserva(String? horaEvento) {
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})$',
+    ).firstMatch(horaEvento?.trim() ?? '');
+    if (match == null) return (inicio: '19:00', fin: '21:00');
+
+    final hora = int.tryParse(match.group(1)!);
+    final minuto = int.tryParse(match.group(2)!);
+    if (hora == null || minuto == null || hora > 23 || minuto > 59) {
+      return (inicio: '19:00', fin: '21:00');
+    }
+
+    final inicio = DateTime(2000, 1, 1, hora, minuto);
+    final fin = inicio.add(const Duration(hours: 2));
+    String format(DateTime value) =>
+        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+    return (inicio: format(inicio), fin: format(fin));
   }
 
   Future<void> _eliminarCotizacion(

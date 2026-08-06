@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app/Presentation/core/domain/enums.dart';
 import 'package:restaurant_app/Presentation/entities/caja/venta.dart';
+import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/providers/caja/caja_provider.dart';
 import 'package:restaurant_app/Presentation/providers/reportes/reportes_provider.dart';
@@ -52,6 +53,38 @@ void main() {
 
       expect(state.totalPendientePorCobrar, 40.0);
       expect(state.ticketPromedioHoy, 20.0);
+    });
+
+    test('includes accepted event quotes in pending collection metrics', () {
+      final now = DateTime(2026, 4, 6, 12, 0);
+      final state = CajaState(
+        pedidosParaCobrar: [
+          Pedido(
+            id: 'p1',
+            restaurantId: 'r1',
+            estado: EstadoPedido.finalizado,
+            total: 30,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        ],
+        cotizacionesParaCobrar: [
+          Cotizacion(
+            id: 'c1',
+            restaurantId: 'r1',
+            clienteNombre: 'Evento',
+            clienteTelefono: '0999999999',
+            clienteEmail: 'evento@example.com',
+            estado: 'aceptada',
+            subtotal: 70,
+            total: 78.4,
+            createdAt: now,
+          ),
+        ],
+      );
+
+      expect(state.totalRegistrosPendientes, 2);
+      expect(state.totalPendientePorCobrar, 108.4);
     });
   });
 

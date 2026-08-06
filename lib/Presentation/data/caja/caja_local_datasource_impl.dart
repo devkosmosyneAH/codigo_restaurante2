@@ -47,9 +47,62 @@ class CajaLocalDataSourceImpl implements CajaLocalDataSource {
     final cotizacionData = {'estado': 'cobrada', 'updated_at': nowIso};
     final reservaData = {'estado': 'realizada', 'updated_at': nowIso};
     final reservacionesActualizadas = <String>[];
+    final esCobroCotizacion = venta.sourceCotizacionId != null;
 
     try {
       await _dbHelper.transaction((txn) async {
+        // Una venta representa el cobro final de una sola fuente. Validar
+        // dentro de la misma transacción evita duplicados por doble toque o
+        // por dos sesiones que tenían la pantalla de caja abierta.
+        final ventasPrevias = await txn.query(
+          _tableVentas,
+          columns: ['id'],
+          where: esCobroCotizacion
+              ? 'restaurant_id = ? AND source_cotizacion_id = ?'
+              : 'restaurant_id = ? AND pedido_id = ? AND source_cotizacion_id IS NULL',
+          whereArgs: esCobroCotizacion
+              ? [venta.restaurantId, venta.sourceCotizacionId]
+              : [venta.restaurantId, venta.pedidoId],
+          limit: 1,
+        );
+        if (ventasPrevias.isNotEmpty) {
+          throw const DatabaseException(
+            message: 'Este registro ya tiene una venta cobrada.',
+          );
+        }
+
+        if (esCobroCotizacion) {
+          final cotizaciones = await txn.query(
+            _tableCotizaciones,
+            columns: ['id'],
+            where: 'id = ? AND restaurant_id = ? AND estado = ?',
+            whereArgs: [
+              venta.sourceCotizacionId,
+              venta.restaurantId,
+              'aceptada',
+            ],
+            limit: 1,
+          );
+          if (cotizaciones.isEmpty) {
+            throw const DatabaseException(
+              message: 'La cotización ya no está disponible para cobro.',
+            );
+          }
+        } else {
+          final pedidos = await txn.query(
+            _tablePedidos,
+            columns: ['id'],
+            where: 'id = ? AND restaurant_id = ? AND estado = ?',
+            whereArgs: [venta.pedidoId, venta.restaurantId, 'finalizado'],
+            limit: 1,
+          );
+          if (pedidos.isEmpty) {
+            throw const DatabaseException(
+              message: 'El pedido ya no está disponible para cobro.',
+            );
+          }
+        }
+
         // 1. Insertar venta principal
         await txn.insert(_tableVentas, ventaData);
 
@@ -97,21 +150,25 @@ class CajaLocalDataSourceImpl implements CajaLocalDataSource {
           await txn.insert(_tableDetalles, detalleModel.toMap());
         }
 
-        // 3. Marcar el pedido como entregado
-        await txn.update(
-          _tablePedidos,
-          pedidoData,
-          where: 'id = ?',
-          whereArgs: [venta.pedidoId],
-        );
+        // 3. Marcar el pedido como entregado solo en cobros de pedidos.
+        // Las cotizaciones usan pedidoId como referencia interna de la venta,
+        // pero no corresponden a una fila de pedidos.
+        if (!esCobroCotizacion) {
+          await txn.update(
+            _tablePedidos,
+            pedidoData,
+            where: 'id = ? AND restaurant_id = ? AND estado = ?',
+            whereArgs: [venta.pedidoId, venta.restaurantId, 'finalizado'],
+          );
+        }
 
         // 4. Liberar la mesa si aplica
-        if (mesaId != null) {
+        if (!esCobroCotizacion && mesaId != null) {
           await txn.update(
             _tableMesas,
             mesaData,
-            where: 'id = ?',
-            whereArgs: [mesaId],
+            where: 'id = ? AND restaurant_id = ?',
+            whereArgs: [mesaId, venta.restaurantId],
           );
         }
 
@@ -120,8 +177,8 @@ class CajaLocalDataSourceImpl implements CajaLocalDataSource {
           final reservaRows = await txn.query(
             _tableReservaciones,
             columns: ['id'],
-            where: 'cotizacion_id = ?',
-            whereArgs: [venta.sourceCotizacionId],
+            where: 'cotizacion_id = ? AND restaurant_id = ?',
+            whereArgs: [venta.sourceCotizacionId, venta.restaurantId],
           );
           reservacionesActualizadas.addAll(
             reservaRows
@@ -133,19 +190,25 @@ class CajaLocalDataSourceImpl implements CajaLocalDataSource {
           await txn.update(
             _tableCotizaciones,
             cotizacionData,
-            where: 'id = ?',
-            whereArgs: [venta.sourceCotizacionId],
+            where: 'id = ? AND restaurant_id = ? AND estado = ?',
+            whereArgs: [
+              venta.sourceCotizacionId,
+              venta.restaurantId,
+              'aceptada',
+            ],
           );
 
           // 6. Marcar la reserva asociada como 'realizada' si existe
           await txn.update(
             _tableReservaciones,
             reservaData,
-            where: 'cotizacion_id = ?',
-            whereArgs: [venta.sourceCotizacionId],
+            where: 'cotizacion_id = ? AND restaurant_id = ?',
+            whereArgs: [venta.sourceCotizacionId, venta.restaurantId],
           );
         }
       });
+    } on DatabaseException {
+      rethrow;
     } catch (e) {
       throw DatabaseException(message: 'Error al registrar venta: $e');
     }
@@ -158,15 +221,17 @@ class CajaLocalDataSourceImpl implements CajaLocalDataSource {
       datos: ventaData,
     );
 
-    await _syncManager.registrarOperacion(
-      tabla: _tablePedidos,
-      registroId: venta.pedidoId,
-      operacion: SyncOperation.update,
-      restaurantId: venta.restaurantId,
-      datos: pedidoData,
-    );
+    if (!esCobroCotizacion) {
+      await _syncManager.registrarOperacion(
+        tabla: _tablePedidos,
+        registroId: venta.pedidoId,
+        operacion: SyncOperation.update,
+        restaurantId: venta.restaurantId,
+        datos: pedidoData,
+      );
+    }
 
-    if (mesaId != null) {
+    if (!esCobroCotizacion && mesaId != null) {
       await _syncManager.registrarOperacion(
         tabla: _tableMesas,
         registroId: mesaId,

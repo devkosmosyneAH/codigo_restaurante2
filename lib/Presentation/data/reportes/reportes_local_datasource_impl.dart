@@ -105,13 +105,13 @@ class ReportesLocalDataSourceImpl implements ReportesLocalDataSource {
       '''
       SELECT
         vd.producto_id,
-        p.nombre,
+        COALESCE(p.nombre, 'Producto manual o eliminado') AS nombre,
         c.nombre        AS categoria_nombre,
         SUM(vd.cantidad)  AS cantidad_vendida,
         SUM(vd.subtotal)  AS total_ingresado
       FROM venta_detalles vd
       JOIN ventas   v ON vd.venta_id    = v.id
-      JOIN productos p ON vd.producto_id = p.id
+      LEFT JOIN productos p ON vd.producto_id = p.id
       LEFT JOIN categorias c ON p.categoria_id = c.id
       WHERE v.restaurant_id = ?
         AND date(v.created_at) BETWEEN date(?) AND date(?)

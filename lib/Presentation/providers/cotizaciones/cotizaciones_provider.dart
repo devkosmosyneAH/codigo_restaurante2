@@ -8,7 +8,10 @@ final cotizacionesProvider = FutureProvider.autoDispose<List<Cotizacion>>((
   ref,
 ) async {
   final result = await sl<GetCotizaciones>()(sl<TenantContext>().restaurantId);
-  return result.fold((_) => <Cotizacion>[], (items) => items);
+  return result.fold(
+    (failure) => throw StateError(failure.message),
+    (items) => items,
+  );
 });
 
 // ── Filtros de búsqueda ───────────────────────────────────────────────────────

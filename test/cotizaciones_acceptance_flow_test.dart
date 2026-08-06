@@ -162,6 +162,8 @@ void main() {
                     clienteEmail: 'estable@demo.com',
                     reservaLocal: true,
                     fechaEvento: '2026-04-20',
+                    horaEvento: '18:30',
+                    lugarEvento: 'Salón principal',
                     comidaPreferida: 'Cazuela y jugos',
                     subtotal: 90,
                     total: 90,
@@ -186,6 +188,13 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(repo.updatedCotizacionId, 'cot-keep-1');
         expect(repo.updatedEstado, 'aceptada');
+        expect(reservaRepo.reservas, hasLength(1));
+        expect(reservaRepo.reservas.single.horaInicio, '18:30');
+        expect(reservaRepo.reservas.single.horaFin, '20:30');
+        expect(
+          reservaRepo.reservas.single.nombreLocalEvento,
+          'Salón principal',
+        );
       },
     );
 

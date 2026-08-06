@@ -20,6 +20,7 @@ import 'package:restaurant_app/Presentation/core/utils/public_route_url_builder.
 import 'package:restaurant_app/Presentation/entities/pagina_publica/public_config.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/pagina_publica/public_gallery_editor.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Página de configuración institucional del negocio.
@@ -186,7 +187,9 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
     final state = ref.watch(publicConfigProvider);
 
     if (state.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: AppLoadingView(message: 'Cargando datos del negocio...'),
+      );
     }
 
     if (state.hasConfig && !_initialized) {
@@ -219,7 +222,9 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text('El logo es un recurso fijo de la aplicacion y se carga desde assets/images.'),
+                const Text(
+                  'El logo es un recurso fijo de la aplicacion y se carga desde assets/images.',
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -242,79 +247,79 @@ class _EmpresaConfigPageState extends ConsumerState<EmpresaConfigPage> {
                 icono: Icons.image_rounded,
                 children: [
                   _LogoPreview(value: _logoData),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
+                          icon: _uploadingLogo
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.upload_rounded, size: 18),
+                          label: Text(
+                            _uploadingLogo
+                                ? 'Procesando...'
+                                : (_logoData.isEmpty
+                                      ? 'Subir logo'
+                                      : 'Cambiar logo'),
+                          ),
+                          onPressed: _uploadingLogo ? null : _pickLogo,
                         ),
-                        icon: _uploadingLogo
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.upload_rounded, size: 18),
-                        label: Text(
-                          _uploadingLogo
-                              ? 'Procesando...'
-                              : (_logoData.isEmpty
-                                    ? 'Subir logo'
-                                    : 'Cambiar logo'),
-                        ),
-                        onPressed: _uploadingLogo ? null : _pickLogo,
                       ),
-                    ),
-                    if (_logoData.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: BorderSide(
-                            color: AppColors.error.withValues(alpha: 0.4),
+                      if (_logoData.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: BorderSide(
+                              color: AppColors.error.withValues(alpha: 0.4),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                          label: const Text('Quitar'),
+                          onPressed: _uploadingLogo
+                              ? null
+                              : () => setState(() => _logoData = ''),
                         ),
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 18,
-                        ),
-                        label: const Text('Quitar'),
-                        onPressed: _uploadingLogo
-                            ? null
-                            : () => setState(() => _logoData = ''),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Sube una imagen (PNG o JPG). Se optimiza automáticamente a '
-                  '512 px y aparece en tickets, encabezados, reportes y la '
-                  'página pública.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Sube una imagen (PNG o JPG). Se optimiza automáticamente a '
+                    '512 px y aparece en tickets, encabezados, reportes y la '
+                    'página pública.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
 
             const SizedBox(height: 16),
 
@@ -718,10 +723,7 @@ class _LogoPreview extends StatelessWidget {
         errorBuilder: (_, __, ___) => _placeholder(),
         loadingBuilder: (_, child, progress) => progress == null
             ? child
-            : const SizedBox(
-                height: 110,
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
+            : const SizedBox(height: 110, child: AppLoadingView(compact: true)),
       );
     } else {
       return _placeholder();

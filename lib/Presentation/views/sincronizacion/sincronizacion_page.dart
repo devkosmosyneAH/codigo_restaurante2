@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_record.dart';
 import 'package:restaurant_app/Presentation/providers/sincronizacion/sync_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Página de Sincronización.
 ///
@@ -100,7 +101,7 @@ class _SincronizacionPageState extends ConsumerState<SincronizacionPage>
           // ── Contenido ────────────────────────────────────────────────
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const AppLoadingView(message: 'Cargando sincronización...')
                 : TabBarView(
                     controller: _tabController,
                     children: [

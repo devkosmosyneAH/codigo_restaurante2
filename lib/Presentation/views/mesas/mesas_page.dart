@@ -11,6 +11,7 @@ import 'package:restaurant_app/Presentation/widgets/mesas/mesa_card.dart';
 import 'package:restaurant_app/Presentation/widgets/mesas/mesa_form_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/mesas/mesa_qr_dialog.dart';
 import 'package:uuid/uuid.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Página principal del módulo de Mesas.
 ///
@@ -215,7 +216,7 @@ class _MesasPageState extends ConsumerState<MesasPage> {
 
     // ── Cargando ───────────────────────────────────────────────
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingView(message: 'Cargando mesas...');
     }
 
     // ── Sin mesas ──────────────────────────────────────────────

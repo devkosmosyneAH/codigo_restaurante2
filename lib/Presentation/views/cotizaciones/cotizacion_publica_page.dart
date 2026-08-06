@@ -11,6 +11,7 @@ import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dar
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/cotizaciones/cotizacion_editor_dialog.dart';
 import 'package:restaurant_app/Presentation/services/cotizaciones/public_cotizacion_cloud_service.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 // ── Provider para cargar una cotización por ID ──────────────────────────────
 
 final cotizacionByIdProvider = FutureProvider.autoDispose
@@ -81,7 +82,7 @@ class CotizacionPublicaPage extends ConsumerWidget {
         ),
       ),
       body: asyncData.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const AppLoadingView(message: 'Cargando cotización...'),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cotizacion) {
           if (cotizacion == null) {

@@ -5,9 +5,27 @@ import 'package:flutter/foundation.dart';
 class FirebaseAppInitializer {
   const FirebaseAppInitializer._();
 
+  static Future<void>? _initialization;
+
   static Future<void> initialize() async {
     if (Firebase.apps.isNotEmpty) return;
 
+    final pending = _initialization;
+    if (pending != null) {
+      await pending;
+      return;
+    }
+
+    final current = _initialize();
+    _initialization = current;
+    try {
+      await current;
+    } finally {
+      if (identical(_initialization, current)) _initialization = null;
+    }
+  }
+
+  static Future<void> _initialize() async {
     if (kIsWeb) {
       await Firebase.initializeApp(
         options: const FirebaseOptions(

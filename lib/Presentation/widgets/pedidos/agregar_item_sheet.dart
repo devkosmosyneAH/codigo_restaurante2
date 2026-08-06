@@ -9,6 +9,7 @@ import 'package:restaurant_app/Presentation/entities/pedidos/pedido_item.dart';
 import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pedidos/pedidos_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Bottom sheet para agregar un producto del menú a un pedido.
 ///
@@ -292,7 +293,7 @@ class _AgregarItemSheetState extends ConsumerState<AgregarItemSheet>
 
   Widget _buildTabMenu(MenuState menu, ScrollController scrollController) {
     if (menu.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingView(message: 'Cargando productos...');
     }
     if (menu.productos.isEmpty) {
       return const Center(

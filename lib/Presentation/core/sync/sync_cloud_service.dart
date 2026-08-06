@@ -5,6 +5,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:restaurant_app/Presentation/core/config/app_environment.dart';
+import 'package:restaurant_app/Presentation/core/firebase/firebase_initializer.dart';
 import 'package:restaurant_app/Presentation/core/sync/sync_record.dart';
 
 abstract class SyncCloudBackend {
@@ -425,7 +426,7 @@ class FirebaseRealtimeSyncCloudBackend implements SyncCloudBackend {
 /// fuera del navegador.
 class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
   FirebaseSdkSyncCloudBackend({FirebaseDatabase? database})
-    : _database = database ?? FirebaseDatabase.instance;
+    : _database = database;
 
   static const Set<String> _localOnlyKeys = {
     'drive_file_id',
@@ -435,13 +436,16 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
     'image_temp_path',
   };
 
-  final FirebaseDatabase _database;
+  final FirebaseDatabase? _database;
+
+  FirebaseDatabase get _firebaseDatabase =>
+      _database ?? FirebaseDatabase.instance;
 
   DatabaseReference _documentRef({
     required String restaurantId,
     required String collection,
     required String documentId,
-  }) => _database
+  }) => _firebaseDatabase
       .ref()
       .child('restaurantes')
       .child(restaurantId.trim())
@@ -451,7 +455,7 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
   DatabaseReference _collectionRef({
     required String restaurantId,
     required String collection,
-  }) => _database
+  }) => _firebaseDatabase
       .ref()
       .child('restaurantes')
       .child(restaurantId.trim())
@@ -466,7 +470,7 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
     }
 
     try {
-      final snapshot = await _database
+      final snapshot = await _firebaseDatabase
           .ref()
           .child('.info')
           .child('connected')
@@ -536,7 +540,7 @@ class FirebaseSdkSyncCloudBackend implements SyncCloudBackend {
     required String recordId,
     required Map<String, dynamic> data,
   }) async {
-    await _database
+    await _firebaseDatabase
         .ref()
         .child('sync_audit')
         .child(recordId)
@@ -703,11 +707,13 @@ class SyncCloudService {
   Future<Map<String, Map<String, dynamic>>> listPublicCollection({
     required String restaurantId,
     required String collection,
-  }) =>
-      _backend.listCollection(
-        restaurantId: restaurantId,
-        collection: collection,
-      );
+  }) async {
+    if (kIsWeb) await FirebaseAppInitializer.initialize();
+    return _backend.listCollection(
+      restaurantId: restaurantId,
+      collection: collection,
+    );
+  }
 
   /// Removes an expired tombstone only after the retention window elapsed.
   Future<void> purgeDocument({

@@ -13,6 +13,7 @@ import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido_item.dart';
 import 'package:restaurant_app/Presentation/providers/menu/public_menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pedidos/pedidos_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 import 'package:uuid/uuid.dart';
 
 /// Modelo local del carrito en esta pantalla.
@@ -200,7 +201,7 @@ class _PedidoMesaPublicaPageState extends ConsumerState<PedidoMesaPublicaPage> {
         ],
       ),
       body: menuState.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Cargando el menú...')
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

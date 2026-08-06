@@ -16,6 +16,7 @@ import 'package:restaurant_app/Presentation/providers/reservaciones/reservas_pro
 import 'package:restaurant_app/Presentation/views/cotizaciones/cotizacion_manual_form_page.dart';
 import 'package:restaurant_app/Presentation/widgets/cotizaciones/cotizacion_editor_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 class CotizacionesPage extends ConsumerStatefulWidget {
   const CotizacionesPage({super.key});
@@ -369,7 +370,8 @@ class _CotizacionesPageState extends ConsumerState<CotizacionesPage> {
                   style: const TextStyle(color: AppColors.error),
                 ),
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const AppLoadingView(message: 'Cargando cotizaciones...'),
             ),
           ),
         ],

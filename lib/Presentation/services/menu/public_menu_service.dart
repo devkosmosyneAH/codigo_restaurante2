@@ -8,6 +8,7 @@ import 'package:restaurant_app/Presentation/Models/menu/variante_model.dart';
 import 'package:restaurant_app/Presentation/entities/menu/categoria.dart';
 import 'package:restaurant_app/Presentation/entities/menu/producto.dart';
 import 'package:restaurant_app/Presentation/entities/menu/variante.dart';
+import 'package:restaurant_app/Presentation/core/firebase/firebase_initializer.dart';
 
 /// Fuente pública de menú. Solo usa lecturas de Firebase y nunca consulta
 /// Firebase Authentication, por lo que puede consumirse desde un QR.
@@ -20,21 +21,24 @@ class PublicMenuSnapshot {
 
 /// Lee el contenido público del menú sin requerir autenticación.
 class PublicMenuService {
-  PublicMenuService({FirebaseDatabase? database})
-    : _database = database ?? FirebaseDatabase.instance;
+  PublicMenuService({FirebaseDatabase? database}) : _database = database;
 
-  final FirebaseDatabase _database;
+  final FirebaseDatabase? _database;
+
+  FirebaseDatabase get _firebaseDatabase =>
+      _database ?? FirebaseDatabase.instance;
 
   /// Escucha únicamente las tres colecciones públicas necesarias. Esto evita
   /// sondear toda la base cada cierto tiempo y actualiza la UI cuando Firebase
   /// emite un cambio real.
   Stream<PublicMenuSnapshot> watch(String restaurantId) {
-    final root = _database.ref().child('restaurantes').child(restaurantId);
     final controller = StreamController<PublicMenuSnapshot>.broadcast();
     DatabaseEvent? categoriasEvent;
     DatabaseEvent? productosEvent;
     DatabaseEvent? variantesEvent;
     final subscriptions = <StreamSubscription<DatabaseEvent>>[];
+    Timer? firstSnapshotTimer;
+    var hasEmittedSnapshot = false;
 
     void emitIfReady() {
       if (categoriasEvent == null ||
@@ -50,29 +54,55 @@ class PublicMenuService {
           variantesEvent!.snapshot.value,
         ),
       );
+      hasEmittedSnapshot = true;
+      firstSnapshotTimer?.cancel();
     }
 
-    controller.onListen = () {
-      subscriptions.add(
-        root.child('categorias').onValue.listen((event) {
-          categoriasEvent = event;
-          emitIfReady();
-        }, onError: controller.addError),
-      );
-      subscriptions.add(
-        root.child('productos').onValue.listen((event) {
-          productosEvent = event;
-          emitIfReady();
-        }, onError: controller.addError),
-      );
-      subscriptions.add(
-        root.child('variantes').onValue.listen((event) {
-          variantesEvent = event;
-          emitIfReady();
-        }, onError: controller.addError),
-      );
+    controller.onListen = () async {
+      try {
+        // La ruta pública puede aparecer antes de que Firebase termine de
+        // inicializarse globalmente. Esperar aquí evita una pantalla de error.
+        if (_database == null) {
+          await FirebaseAppInitializer.initialize();
+        }
+        if (controller.isClosed) return;
+
+        final root = _firebaseDatabase
+            .ref()
+            .child('restaurantes')
+            .child(restaurantId);
+        firstSnapshotTimer = Timer(const Duration(seconds: 12), () {
+          if (!hasEmittedSnapshot && !controller.isClosed) {
+            controller.addError(
+              TimeoutException('El menú tardó demasiado en responder.'),
+            );
+          }
+        });
+
+        subscriptions.add(
+          root.child('categorias').onValue.listen((event) {
+            categoriasEvent = event;
+            emitIfReady();
+          }, onError: controller.addError),
+        );
+        subscriptions.add(
+          root.child('productos').onValue.listen((event) {
+            productosEvent = event;
+            emitIfReady();
+          }, onError: controller.addError),
+        );
+        subscriptions.add(
+          root.child('variantes').onValue.listen((event) {
+            variantesEvent = event;
+            emitIfReady();
+          }, onError: controller.addError),
+        );
+      } catch (error, stack) {
+        if (!controller.isClosed) controller.addError(error, stack);
+      }
     };
     controller.onCancel = () async {
+      firstSnapshotTimer?.cancel();
       await Future.wait(
         subscriptions.map((subscription) => subscription.cancel()),
       );
@@ -82,7 +112,13 @@ class PublicMenuService {
   }
 
   Future<PublicMenuSnapshot> fetch(String restaurantId) async {
-    final root = _database.ref().child('restaurantes').child(restaurantId);
+    if (_database == null) {
+      await FirebaseAppInitializer.initialize();
+    }
+    final root = _firebaseDatabase
+        .ref()
+        .child('restaurantes')
+        .child(restaurantId);
     final results = await Future.wait([
       root.child('categorias').once(),
       root.child('productos').once(),

@@ -333,10 +333,7 @@ class _ResumenDialog extends ConsumerWidget {
       content: SizedBox(
         width: (MediaQuery.sizeOf(context).width - 48).clamp(280.0, 420.0),
         child: resumen == null
-            ? const SizedBox(
-                height: 80,
-                child: Center(child: CircularProgressIndicator()),
-              )
+            ? const SizedBox(height: 80, child: AppLoadingView(compact: true))
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

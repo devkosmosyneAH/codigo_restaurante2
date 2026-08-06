@@ -17,6 +17,7 @@ import 'package:restaurant_app/Presentation/providers/reservaciones/reservas_pro
 import 'package:restaurant_app/Presentation/services/clientes/cliente_service.dart';
 import 'package:restaurant_app/Presentation/widgets/reservaciones/reserva_form_dialog.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Pantalla de reservaciones (admin).
 class ReservasPage extends ConsumerStatefulWidget {
@@ -75,7 +76,7 @@ class _ReservasPageState extends ConsumerState<ReservasPage> {
         future: _localeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingView(message: 'Preparando calendario...');
           }
 
           return Column(
@@ -195,7 +196,7 @@ class _ReservasPageState extends ConsumerState<ReservasPage> {
               const Divider(height: 1),
               Expanded(
                 child: state.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const AppLoadingView(message: 'Cargando reservas...')
                     : _mostrarHorario
                     ? _buildHorarioDia(state)
                     : _buildListaDia(state, cotizacionesPendientes),

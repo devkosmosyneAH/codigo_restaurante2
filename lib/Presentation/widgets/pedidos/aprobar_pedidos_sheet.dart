@@ -4,6 +4,7 @@ import 'package:restaurant_app/Presentation/core/constants/app_constants.dart';
 import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/providers/pedidos/pedidos_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Panel que muestra los pedidos pendientes de aprobación para el mesero.
 ///
@@ -231,7 +232,7 @@ class _PedidoPendienteCardState extends ConsumerState<_PedidoPendienteCard> {
           const SizedBox(height: 8),
           // Botones
           if (_processing)
-            const Center(child: CircularProgressIndicator())
+            const AppLoadingView(compact: true)
           else
             Row(
               children: [

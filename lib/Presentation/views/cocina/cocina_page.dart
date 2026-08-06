@@ -5,6 +5,7 @@ import 'package:restaurant_app/Presentation/entities/pedidos/pedido.dart';
 import 'package:restaurant_app/Presentation/providers/cocina/cocina_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/cocina/cocina_ticket_card.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Pantalla de Cocina.
 ///
@@ -182,9 +183,7 @@ class _CocinaPageState extends ConsumerState<CocinaPage> {
     }
 
     if (state.isLoading && state.totalPedidos == 0) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
+      return const AppLoadingView(message: 'Cargando pedidos de cocina...');
     }
 
     if (state.totalPedidos == 0) {

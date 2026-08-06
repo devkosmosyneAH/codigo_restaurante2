@@ -6,6 +6,7 @@ import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/categoria_form_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/producto_card.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/producto_form_dialog.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Administración del menú. Las imágenes se gestionan mediante Cloudinary;
 /// Firebase conserva el producto y sus metadatos.
@@ -43,9 +44,11 @@ class _MenuPageState extends ConsumerState<MenuPage>
       if (_tabs!.indexIsChanging) return;
       final state = ref.read(menuProvider);
       final index = _tabs!.index;
-      ref.read(menuProvider.notifier).seleccionarCategoria(
-        index == 0 ? null : state.categorias[index - 1].id,
-      );
+      ref
+          .read(menuProvider.notifier)
+          .seleccionarCategoria(
+            index == 0 ? null : state.categorias[index - 1].id,
+          );
     });
   }
 
@@ -64,7 +67,9 @@ class _MenuPageState extends ConsumerState<MenuPage>
       categoria: state.categorias[index],
     );
     if (!mounted || updated == null) return;
-    final ok = await ref.read(menuProvider.notifier).actualizarCategoria(updated);
+    final ok = await ref
+        .read(menuProvider.notifier)
+        .actualizarCategoria(updated);
     if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
@@ -77,7 +82,9 @@ class _MenuPageState extends ConsumerState<MenuPage>
       '¿Eliminar "${category.nombre}"? Los productos quedarán sin categoría.',
     );
     if (!mounted || confirmed != true) return;
-    final ok = await ref.read(menuProvider.notifier).eliminarCategoria(category.id);
+    final ok = await ref
+        .read(menuProvider.notifier)
+        .eliminarCategoria(category.id);
     if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
@@ -106,12 +113,17 @@ class _MenuPageState extends ConsumerState<MenuPage>
       categorias: state.categorias,
     );
     if (!mounted || updated == null) return;
-    final ok = await ref.read(menuProvider.notifier).actualizarProducto(updated);
+    final ok = await ref
+        .read(menuProvider.notifier)
+        .actualizarProducto(updated);
     if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
   }
 
   Future<void> _deleteProduct(String id, String name) async {
-    final confirmed = await _confirm('Eliminar producto', '¿Eliminar "$name" del menú?');
+    final confirmed = await _confirm(
+      'Eliminar producto',
+      '¿Eliminar "$name" del menú?',
+    );
     if (!mounted || confirmed != true) return;
     final ok = await ref.read(menuProvider.notifier).eliminarProducto(id);
     if (!ok && mounted) _showError(ref.read(menuProvider).errorMessage);
@@ -123,19 +135,29 @@ class _MenuPageState extends ConsumerState<MenuPage>
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-        FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Eliminar')),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Eliminar'),
+        ),
       ],
     ),
   );
 
-  void _showMessage(String message) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _showMessage(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 
   void _showError(String? message) {
     if (message == null || message.isEmpty) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
     );
   }
 
@@ -146,12 +168,15 @@ class _MenuPageState extends ConsumerState<MenuPage>
     final tabs = _tabs;
     final productsByTab = <List<dynamic>>[
       state.productos,
-      ...state.categorias.map((category) => state.productos.where((p) => p.categoriaId == category.id).toList()),
+      ...state.categorias.map(
+        (category) =>
+            state.productos.where((p) => p.categoriaId == category.id).toList(),
+      ),
     ];
 
     return Scaffold(
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Cargando menú...')
           : Column(
               children: [
                 Padding(
@@ -162,12 +187,22 @@ class _MenuPageState extends ConsumerState<MenuPage>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Menú', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                            Text('${state.totalProductos} productos · ${state.totalCategorias} categorías'),
+                            Text(
+                              'Menú',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${state.totalProductos} productos · ${state.totalCategorias} categorías',
+                            ),
                           ],
                         ),
                       ),
-                      OutlinedButton.icon(onPressed: () => context.push(AppRouter.menuPublico), icon: const Icon(Icons.visibility_outlined), label: const Text('Vista cliente')),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push(AppRouter.menuPublico),
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('Vista cliente'),
+                      ),
                       const SizedBox(width: 8),
                     ],
                   ),
@@ -176,9 +211,17 @@ class _MenuPageState extends ConsumerState<MenuPage>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: [
-                      OutlinedButton.icon(onPressed: _createCategory, icon: const Icon(Icons.create_new_folder_outlined), label: const Text('Categoría')),
+                      OutlinedButton.icon(
+                        onPressed: _createCategory,
+                        icon: const Icon(Icons.create_new_folder_outlined),
+                        label: const Text('Categoría'),
+                      ),
                       const SizedBox(width: 8),
-                      FilledButton.icon(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Producto')),
+                      FilledButton.icon(
+                        onPressed: _createProduct,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Producto'),
+                      ),
                     ],
                   ),
                 ),
@@ -189,15 +232,20 @@ class _MenuPageState extends ConsumerState<MenuPage>
                     isScrollable: true,
                     tabs: [
                       const Tab(text: 'Todos'),
-                      ...state.categorias.asMap().entries.map((entry) => Tab(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(entry.value.nombre),
-                            IconButton(icon: const Icon(Icons.more_vert, size: 16), onPressed: () => _categoryMenu(entry.key)),
-                          ],
+                      ...state.categorias.asMap().entries.map(
+                        (entry) => Tab(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(entry.value.nombre),
+                              IconButton(
+                                icon: const Icon(Icons.more_vert, size: 16),
+                                onPressed: () => _categoryMenu(entry.key),
+                              ),
+                            ],
+                          ),
                         ),
-                      )),
+                      ),
                     ],
                   ),
                 Expanded(
@@ -205,12 +253,18 @@ class _MenuPageState extends ConsumerState<MenuPage>
                       ? const SizedBox.shrink()
                       : TabBarView(
                           controller: tabs,
-                          children: productsByTab.map((products) => _productGrid(products, state)).toList(),
+                          children: productsByTab
+                              .map((products) => _productGrid(products, state))
+                              .toList(),
                         ),
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Nuevo producto')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _createProduct,
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo producto'),
+      ),
     );
   }
 
@@ -218,10 +272,21 @@ class _MenuPageState extends ConsumerState<MenuPage>
     showModalBottomSheet<String>(
       context: context,
       builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Editar'), onTap: () => Navigator.pop(context, 'edit')),
-          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Eliminar'), onTap: () => Navigator.pop(context, 'delete')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Editar'),
+              onTap: () => Navigator.pop(context, 'edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Eliminar'),
+              onTap: () => Navigator.pop(context, 'delete'),
+            ),
+          ],
+        ),
       ),
     ).then((value) {
       if (value == 'edit') _editCategory(index);
@@ -230,15 +295,36 @@ class _MenuPageState extends ConsumerState<MenuPage>
   }
 
   Widget _productGrid(List<dynamic> products, MenuState state) {
-    if (products.isEmpty) return Center(child: FilledButton.icon(onPressed: _createProduct, icon: const Icon(Icons.add), label: const Text('Agregar producto')));
+    if (products.isEmpty) {
+      return Center(
+        child: FilledButton.icon(
+          onPressed: _createProduct,
+          icon: const Icon(Icons.add),
+          label: const Text('Agregar producto'),
+        ),
+      );
+    }
     return GridView.builder(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 300, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: .84),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 300,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: .84,
+      ),
       itemCount: products.length,
       itemBuilder: (_, index) {
         final product = products[index];
-        final categoryName = state.categorias.where((c) => c.id == product.categoriaId).map((c) => c.nombre).firstOrNull;
-        return ProductoCard(producto: product, categoriaNombre: categoryName, onEdit: () => _editProduct(product.id), onDelete: () => _deleteProduct(product.id, product.nombre));
+        final categoryName = state.categorias
+            .where((c) => c.id == product.categoriaId)
+            .map((c) => c.nombre)
+            .firstOrNull;
+        return ProductoCard(
+          producto: product,
+          categoriaNombre: categoryName,
+          onEdit: () => _editProduct(product.id),
+          onDelete: () => _deleteProduct(product.id, product.nombre),
+        );
       },
     );
   }

@@ -16,6 +16,7 @@ import 'package:restaurant_app/Presentation/widgets/caja/cobro_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/caja/configuracion_fiscal_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/caja/ticket_dialog.dart';
 import 'package:restaurant_app/Presentation/widgets/caja/venta_card.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Página principal del módulo de Caja.
 ///
@@ -500,7 +501,7 @@ class _CajaPageState extends ConsumerState<CajaPage>
             // ── Contenido ──────────────────────────────────────
             Expanded(
               child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppLoadingView(message: 'Cargando caja...')
                   : TabBarView(
                       controller: _tabController,
                       children: [

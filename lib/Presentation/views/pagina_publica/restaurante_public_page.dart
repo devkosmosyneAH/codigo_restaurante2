@@ -14,6 +14,7 @@ import 'package:restaurant_app/Presentation/providers/pagina_publica/public_conf
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_gallery_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/menu_image_loader.dart';
 import 'package:restaurant_app/Presentation/widgets/pagina_publica/public_gallery_view.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Vista pública del restaurante. Accesible sin autenticación.
@@ -52,7 +53,10 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
     if (state.isLoading) {
       return const Scaffold(
         backgroundColor: _cream,
-        body: Center(child: CircularProgressIndicator(color: _teal)),
+        body: AppLoadingView(
+          message: 'Cargando la página del restaurante...',
+          color: _teal,
+        ),
       );
     }
 
@@ -77,145 +81,150 @@ class _RestaurantePublicPageState extends ConsumerState<RestaurantePublicPage> {
           child: CustomScrollView(
             slivers: [
               _HeroSliver(config: config),
-            SliverToBoxAdapter(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final maxContentWidth = width >= 1800
-                      ? 1380.0
-                      : width >= 1440
-                      ? 1280.0
-                      : width >= 1100
-                      ? 1080.0
-                      : width >= 900
-                      ? 920.0
-                      : width;
-                  final horizontalInset = width >= 1800
-                      ? 56.0
-                      : width >= 1440
-                      ? 40.0
-                      : width >= 1200
-                      ? 32.0
-                      : width >= 900
-                      ? 20.0
-                      : 0.0;
+              SliverToBoxAdapter(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final maxContentWidth = width >= 1800
+                        ? 1380.0
+                        : width >= 1440
+                        ? 1280.0
+                        : width >= 1100
+                        ? 1080.0
+                        : width >= 900
+                        ? 920.0
+                        : width;
+                    final horizontalInset = width >= 1800
+                        ? 56.0
+                        : width >= 1440
+                        ? 40.0
+                        : width >= 1200
+                        ? 32.0
+                        : width >= 900
+                        ? 20.0
+                        : 0.0;
 
-                  return Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: horizontalInset,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: maxContentWidth,
+                    return Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalInset,
                             ),
-                            child: Column(
-                              children: [
-                                _SoftReveal(
-                                  child: PublicGalleryView(
-                                    images: galleryState.images
-                                        .where((image) => image.activo && !image.isCover)
-                                        .take(12)
-                                        .toList(),
-                                  ),
-                                ),
-                                if (config.mostrarBotonMenu ||
-                                    config.mostrarBotonReservas)
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: maxContentWidth,
+                              ),
+                              child: Column(
+                                children: [
                                   _SoftReveal(
-                                    child: _CtaSection(config: config),
-                                  ),
-                                const SizedBox(height: 4),
-                                _SoftReveal(
-                                  delay: Duration(milliseconds: 70),
-                                  child: _ExperienciasSection(config: config),
-                                ),
-                                const _SoftReveal(
-                                  delay: Duration(milliseconds: 110),
-                                  child: _EstadisticasSection(),
-                                ),
-                                if (config.mostrarBotonMenu)
-                                  _SoftReveal(
-                                    delay: Duration(milliseconds: 140),
-                                    child: _MenuPreviewSection(config: config),
-                                  ),
-                                const _SoftReveal(
-                                  delay: Duration(milliseconds: 160),
-                                  child: _TestimoniosSection(),
-                                ),
-                                if (config.mostrarBotonReservas)
-                                  _SoftReveal(
-                                    delay: Duration(milliseconds: 170),
-                                    child: _ReservasBannerSection(
-                                      config: config,
+                                    child: PublicGalleryView(
+                                      images: galleryState.images
+                                          .where(
+                                            (image) =>
+                                                image.activo && !image.isCover,
+                                          )
+                                          .take(12)
+                                          .toList(),
                                     ),
                                   ),
-                                if (config.descripcion.isNotEmpty)
+                                  if (config.mostrarBotonMenu ||
+                                      config.mostrarBotonReservas)
+                                    _SoftReveal(
+                                      child: _CtaSection(config: config),
+                                    ),
+                                  const SizedBox(height: 4),
                                   _SoftReveal(
-                                    delay: Duration(milliseconds: 190),
-                                    child: _AboutSection(config: config),
+                                    delay: Duration(milliseconds: 70),
+                                    child: _ExperienciasSection(config: config),
                                   ),
-                                const _SoftReveal(
-                                  delay: Duration(milliseconds: 210),
-                                  child: _EventosSection(),
-                                ),
-                                _SoftReveal(
-                                  delay: const Duration(milliseconds: 230),
-                                  child: LayoutBuilder(
-                                    builder: (ctx, cons) {
-                                      if (cons.maxWidth >= 800 &&
-                                          config.horarios.isNotEmpty) {
-                                        return Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                  const _SoftReveal(
+                                    delay: Duration(milliseconds: 110),
+                                    child: _EstadisticasSection(),
+                                  ),
+                                  if (config.mostrarBotonMenu)
+                                    _SoftReveal(
+                                      delay: Duration(milliseconds: 140),
+                                      child: _MenuPreviewSection(
+                                        config: config,
+                                      ),
+                                    ),
+                                  const _SoftReveal(
+                                    delay: Duration(milliseconds: 160),
+                                    child: _TestimoniosSection(),
+                                  ),
+                                  if (config.mostrarBotonReservas)
+                                    _SoftReveal(
+                                      delay: Duration(milliseconds: 170),
+                                      child: _ReservasBannerSection(
+                                        config: config,
+                                      ),
+                                    ),
+                                  if (config.descripcion.isNotEmpty)
+                                    _SoftReveal(
+                                      delay: Duration(milliseconds: 190),
+                                      child: _AboutSection(config: config),
+                                    ),
+                                  const _SoftReveal(
+                                    delay: Duration(milliseconds: 210),
+                                    child: _EventosSection(),
+                                  ),
+                                  _SoftReveal(
+                                    delay: const Duration(milliseconds: 230),
+                                    child: LayoutBuilder(
+                                      builder: (ctx, cons) {
+                                        if (cons.maxWidth >= 800 &&
+                                            config.horarios.isNotEmpty) {
+                                          return Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: _HorariosSection(
+                                                  config: config,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: _ContactoSection(
+                                                  config: config,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }
+                                        return Column(
                                           children: [
-                                            Expanded(
-                                              child: _HorariosSection(
-                                                config: config,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: _ContactoSection(
-                                                config: config,
-                                              ),
-                                            ),
+                                            if (config.horarios.isNotEmpty)
+                                              _HorariosSection(config: config),
+                                            _ContactoSection(config: config),
                                           ],
                                         );
-                                      }
-                                      return Column(
-                                        children: [
-                                          if (config.horarios.isNotEmpty)
-                                            _HorariosSection(config: config),
-                                          _ContactoSection(config: config),
-                                        ],
-                                      );
-                                    },
+                                      },
+                                    ),
                                   ),
-                                ),
-                                if (config.facebook.isNotEmpty ||
-                                    config.instagram.isNotEmpty)
+                                  if (config.facebook.isNotEmpty ||
+                                      config.instagram.isNotEmpty)
+                                    _SoftReveal(
+                                      delay: Duration(milliseconds: 250),
+                                      child: _RedesSection(config: config),
+                                    ),
                                   _SoftReveal(
-                                    delay: Duration(milliseconds: 250),
-                                    child: _RedesSection(config: config),
+                                    delay: const Duration(milliseconds: 270),
+                                    child: _UbicacionMapSection(config: config),
                                   ),
-                                _SoftReveal(
-                                  delay: const Duration(milliseconds: 270),
-                                  child: _UbicacionMapSection(config: config),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      _Footer(config: config),
-                    ],
-                  );
-                },
+                        _Footer(config: config),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
             ],
           ),
           builder: (context, value, child) {

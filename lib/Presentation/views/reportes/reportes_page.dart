@@ -16,6 +16,7 @@ import 'package:restaurant_app/Presentation/entities/reportes/reporte_venta_dia.
 import 'package:restaurant_app/Presentation/providers/reportes/reportes_provider.dart';
 import 'package:restaurant_app/Presentation/services/report_export_access_stub.dart'
     as report_export_access;
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Página principal de Reportes y Analítica.
 ///
@@ -414,7 +415,7 @@ class _ReportesPageState extends ConsumerState<ReportesPage>
           ),
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const AppLoadingView(message: 'Calculando reportes...')
                 : state.error != null
                 ? _ErrorView(
                     error: state.error!,

@@ -26,6 +26,7 @@ class DatabaseHelper {
   static DatabaseBackend backend = DatabaseBackend.sqlite;
 
   Database? _database;
+  Future<Database>? _databaseOpening;
 
   static void disableLocalDatabase() {
     enabled = false;
@@ -50,8 +51,17 @@ class DatabaseHelper {
   Future<Database> get database async {
     _assertEnabled();
     if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    final opening = _databaseOpening;
+    if (opening != null) return opening;
+
+    final newOpening = _initDatabase();
+    _databaseOpening = newOpening;
+    try {
+      _database = await newOpening;
+      return _database!;
+    } finally {
+      _databaseOpening = null;
+    }
   }
 
   /// Inicializa la base de datos SQLite.
@@ -1162,7 +1172,12 @@ class DatabaseHelper {
       ''');
     }
     if (oldVersion < 38) {
-      await _addColumnIfMissing(db, 'productos', 'cloudinary_public_id', 'TEXT');
+      await _addColumnIfMissing(
+        db,
+        'productos',
+        'cloudinary_public_id',
+        'TEXT',
+      );
       await _addColumnIfMissing(db, 'productos', 'imagen_width', 'INTEGER');
       await _addColumnIfMissing(db, 'productos', 'imagen_height', 'INTEGER');
       await _addColumnIfMissing(db, 'productos', 'imagen_bytes', 'INTEGER');
@@ -1191,7 +1206,9 @@ class DatabaseHelper {
         ON public_gallery_images (restaurant_id, tipo, activo, orden, updated_at)
       ''');
       await db.execute('DROP TABLE IF EXISTS drive_connections');
-      await db.execute('UPDATE productos SET drive_file_id = NULL, drive_public_url = NULL');
+      await db.execute(
+        'UPDATE productos SET drive_file_id = NULL, drive_public_url = NULL',
+      );
     }
   }
 
@@ -1288,6 +1305,10 @@ class DatabaseHelper {
 
   /// Cierra la conexión a la base de datos.
   Future<void> close() async {
+    final opening = _databaseOpening;
+    if (opening != null) {
+      await opening;
+    }
     if (_database != null) {
       await _database!.close();
       _database = null;

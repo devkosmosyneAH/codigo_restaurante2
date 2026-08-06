@@ -5,6 +5,7 @@ import 'package:restaurant_app/Presentation/entities/usuarios/usuario.dart';
 import 'package:restaurant_app/Presentation/providers/usuarios/usuario_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/usuarios/usuario_card.dart';
 import 'package:restaurant_app/Presentation/widgets/usuarios/usuario_form_dialog.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Página principal de gestión de Usuarios y Roles.
 class UsuariosPage extends ConsumerWidget {
@@ -53,7 +54,7 @@ class UsuariosPage extends ConsumerWidget {
             // ── Lista ───────────────────────────────────────────────────
             Expanded(
               child: state.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppLoadingView(message: 'Cargando usuarios...')
                   : state.usuariosFiltrados.isEmpty
                   ? _EmptyState(
                       tieneUsuarios: state.usuarios.isNotEmpty,

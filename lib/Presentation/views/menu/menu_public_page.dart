@@ -15,6 +15,7 @@ import 'package:restaurant_app/Presentation/providers/mesas/llamados_provider.da
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
 import 'package:restaurant_app/Presentation/widgets/cotizaciones/cotizacion_sheet.dart';
 import 'package:restaurant_app/Presentation/widgets/menu/public_producto_card.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Menu publico accesible por QR.
 ///
@@ -168,11 +169,11 @@ class _MenuPublicPageState extends ConsumerState<MenuPublicPage>
               ),
       ),
       body: !hasResolvedPublicConfig
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Preparando el menú...')
           : !isMenuEnabled
           ? _buildMenuDisabledBody(context)
           : state.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Cargando productos...')
           : _buildBody(context, state),
       bottomNavigationBar: isMenuEnabled ? _buildBottomBar(context) : null,
       floatingActionButton: isMenuEnabled && cart.totalItems > 0

@@ -7,6 +7,7 @@ import 'package:restaurant_app/Presentation/core/tenant/tenant_context.dart';
 import 'package:restaurant_app/Presentation/core/theme/app_colors.dart';
 import 'package:restaurant_app/Presentation/entities/pagina_publica/public_config.dart';
 import 'package:restaurant_app/Presentation/providers/pagina_publica/public_config_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Panel interno para administrar el contenido de la página pública.
 ///
@@ -206,7 +207,9 @@ class _RestauranteConfigPageState extends ConsumerState<RestauranteConfigPage> {
     final state = ref.watch(publicConfigProvider);
 
     if (state.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: AppLoadingView(message: 'Cargando configuración...'),
+      );
     }
 
     if (state.hasConfig && !_initialized) {

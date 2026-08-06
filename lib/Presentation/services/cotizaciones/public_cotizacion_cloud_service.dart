@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:restaurant_app/Presentation/core/firebase/firebase_initializer.dart';
 import 'package:restaurant_app/Presentation/Models/cotizaciones/cotizacion_item_model.dart';
 import 'package:restaurant_app/Presentation/Models/cotizaciones/cotizacion_model.dart';
 import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dart';
@@ -10,24 +11,26 @@ import 'package:restaurant_app/Presentation/entities/cotizaciones/cotizacion.dar
 /// regla de Realtime Database limita la escritura anónima a nuevas solicitudes
 /// con origen "publica" y la lectura a esos documentos.
 class PublicCotizacionCloudService {
-  PublicCotizacionCloudService({
-    FirebaseDatabase? database,
-    FirebaseAuth? auth,
-  }) : _database = database ?? FirebaseDatabase.instance,
-       _auth = auth ?? FirebaseAuth.instance;
+  PublicCotizacionCloudService({FirebaseDatabase? database, FirebaseAuth? auth})
+    : _database = database,
+      _auth = auth;
 
-  final FirebaseDatabase _database;
-  final FirebaseAuth _auth;
+  final FirebaseDatabase? _database;
+  final FirebaseAuth? _auth;
 
-  bool get isSignedIn => _auth.currentUser != null;
+  FirebaseDatabase get _firebaseDatabase =>
+      _database ?? FirebaseDatabase.instance;
+
+  FirebaseAuth get _firebaseAuth => _auth ?? FirebaseAuth.instance;
+
+  bool get isSignedIn => _firebaseAuth.currentUser != null;
 
   Future<void> submit(Cotizacion cotizacion) async {
-    final root = _database.ref();
+    if (_database == null) await FirebaseAppInitializer.initialize();
+    final root = _firebaseDatabase.ref();
     final base = 'restaurantes/${cotizacion.restaurantId}';
     final quotePath = '$base/cotizaciones/${cotizacion.id}';
-    final writes = <String, dynamic>{
-      quotePath: _quotePayload(cotizacion),
-    };
+    final writes = <String, dynamic>{quotePath: _quotePayload(cotizacion)};
 
     for (final item in cotizacion.items) {
       final itemPayload = CotizacionItemModel.fromEntity(item).toMap()
@@ -46,7 +49,11 @@ class PublicCotizacionCloudService {
     required String restaurantId,
     required String cotizacionId,
   }) async {
-    final base = _database.ref().child('restaurantes').child(restaurantId);
+    if (_database == null) await FirebaseAppInitializer.initialize();
+    final base = _firebaseDatabase
+        .ref()
+        .child('restaurantes')
+        .child(restaurantId);
     final quoteSnapshot = await base
         .child('cotizaciones')
         .child(cotizacionId)
@@ -84,19 +91,22 @@ class PublicCotizacionCloudService {
     items.sort((a, b) => a.id.compareTo(b.id));
 
     try {
-      return CotizacionModel.fromMap(
-        {...quote, 'id': quote['id'] ?? cotizacionId},
-        items: items,
-      );
+      return CotizacionModel.fromMap({
+        ...quote,
+        'id': quote['id'] ?? cotizacionId,
+      }, items: items);
     } catch (_) {
       return null;
     }
   }
 
   Map<String, dynamic> _quotePayload(Cotizacion cotizacion) {
-    final payload = Map<String, dynamic>.from(
-      CotizacionModel.fromEntity(cotizacion).toMap(),
-    )..removeWhere((key, value) => value == null || key == 'firma_imagen_bytes');
+    final payload =
+        Map<String, dynamic>.from(
+          CotizacionModel.fromEntity(cotizacion).toMap(),
+        )..removeWhere(
+          (key, value) => value == null || key == 'firma_imagen_bytes',
+        );
     payload['origen'] = 'publica';
     payload['item_ids'] = cotizacion.items.map((item) => item.id).toList();
     return payload;

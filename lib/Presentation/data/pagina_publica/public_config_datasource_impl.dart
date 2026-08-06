@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:restaurant_app/Presentation/Models/pagina_publica/public_config_model.dart';
 import 'package:restaurant_app/Presentation/core/database/database_helper.dart';
 import 'package:restaurant_app/Presentation/core/errors/exceptions.dart';
@@ -27,10 +29,12 @@ class PublicConfigDatasourceImpl implements PublicConfigDatasource {
   Future<PublicConfigModel?> getConfig(String restaurantId) async {
     try {
       try {
-        final remote = await _cloudService.listPublicCollection(
-          restaurantId: restaurantId,
-          collection: _table,
-        );
+        final remote = await _cloudService
+            .listPublicCollection(
+              restaurantId: restaurantId,
+              collection: _table,
+            )
+            .timeout(const Duration(seconds: 8));
         final remoteConfig = remote[restaurantId];
         if (remoteConfig != null && remoteConfig['deleted_at'] == null) {
           return PublicConfigModel.fromMap({

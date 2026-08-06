@@ -39,33 +39,20 @@ Future<void> main() async {
       };
 
       try {
-        debugPrint('STEP 1 - initializeDateFormatting');
-        await initializeDateFormatting('es', null);
-
-        debugPrint('STEP 2 - initializeDesktopWindow');
+        debugPrint('STEP 1 - initializeDesktopWindow');
         await initializeDesktopWindow();
 
-        debugPrint('STEP 3 - initializePlatformSpecific');
-        await initializePlatformSpecific();
-
-        debugPrint('STEP 4 - initDatabaseSafely');
-        await initDatabaseSafely();
-
-        debugPrint('STEP 5 - FirebaseAppInitializer.initialize');
-        await FirebaseAppInitializer.initialize();
-
-        debugPrint('STEP 6 - initDependencies');
-        await initDependencies();
-
-        debugPrint('STEP 7 - ActivationChangeNotifier.loadStatus');
-        await sl<ActivationChangeNotifier>().loadStatus();
-
-        debugPrint('STEP 8 - AuthChangeNotifier.restoreSession');
-        await sl<AuthChangeNotifier>().restoreSession();
-
-        debugPrint('STEP 9 - runApp');
+        // La registración es síncrona en la práctica y debe ocurrir antes de
+        // construir el router, pero no debe retrasar el primer frame.
+        debugPrint('STEP 2 - initDependencies');
+        unawaited(initDependencies());
 
         runApp(const ProviderScope(child: RestaurantApp()));
+
+        // SQLite, Firebase y la restauración de sesión pueden tardar bastante
+        // en el primer acceso web. Se ejecutan después de mostrar la UI para
+        // evitar una pantalla en blanco durante toda la inicialización.
+        unawaited(_initializeServicesInBackground());
       } catch (e, s) {
         debugPrint('================ ERROR EN MAIN =================');
         debugPrint(e.toString());
@@ -82,6 +69,29 @@ Future<void> main() async {
       debugPrint('==============================================');
     },
   );
+}
+
+Future<void> _initializeServicesInBackground() async {
+  try {
+    debugPrint('STARTUP - inicializando servicios en segundo plano');
+    await Future.wait([
+      initializeDateFormatting('es', null),
+      initializePlatformSpecific(),
+      initDatabaseSafely(),
+      FirebaseAppInitializer.initialize(),
+      sl<ActivationChangeNotifier>().loadStatus(),
+    ]);
+
+    debugPrint('STARTUP - restaurando sesión');
+    await sl<AuthChangeNotifier>().restoreSession();
+    debugPrint('STARTUP - servicios listos');
+  } catch (e, s) {
+    // La UI ya está visible. Un fallo de un servicio no debe convertir el
+    // primer acceso en una pantalla en blanco; cada módulo mostrará su
+    // estado de error o reintentará cuando corresponda.
+    debugPrint('STARTUP - inicialización parcial: $e');
+    debugPrintStack(stackTrace: s);
+  }
 }
 
 class RestaurantApp extends StatelessWidget {

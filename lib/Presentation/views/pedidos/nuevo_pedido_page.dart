@@ -14,6 +14,7 @@ import 'package:restaurant_app/Presentation/entities/pedidos/pedido_item.dart';
 import 'package:restaurant_app/Presentation/providers/menu/menu_provider.dart';
 import 'package:restaurant_app/Presentation/providers/mesas/mesas_provider.dart';
 import 'package:restaurant_app/Presentation/providers/pedidos/pedidos_provider.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 // ── Carrito en memoria ─────────────────────────────────────────────────────────
 
@@ -245,7 +246,7 @@ class _NuevoPedidoPageState extends ConsumerState<NuevoPedidoPage>
       backgroundColor: Colors.grey[100],
       appBar: _buildAppBar(),
       body: menuState.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingView(message: 'Cargando productos...')
           : menuState.errorMessage != null && menuState.productos.isEmpty
           ? _buildMenuError(menuState.errorMessage!)
           : menuState.productos.isEmpty

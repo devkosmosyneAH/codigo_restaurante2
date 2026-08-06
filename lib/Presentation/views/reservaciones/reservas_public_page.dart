@@ -15,6 +15,7 @@ import 'package:restaurant_app/Presentation/providers/pagina_publica/public_conf
 import 'package:restaurant_app/Presentation/providers/reservaciones/reservas_provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:restaurant_app/Presentation/widgets/skeleton_loader.dart';
 
 /// Calendario publico de disponibilidad.
 class ReservasPublicPage extends ConsumerStatefulWidget {
@@ -73,7 +74,7 @@ class _ReservasPublicPageState extends ConsumerState<ReservasPublicPage> {
         future: _localeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingView(message: 'Preparando reservaciones...');
           }
 
           return Column(
